@@ -1,29 +1,75 @@
 {
   "expo": {
-    "name": "cuisinessentiel",
+    "name": "Cuisin'essentiel",
     "slug": "cuisinessentiel",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
+    "scheme": "cuisinessentiel",
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#FAF9F6"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.cordycepscreation.cuisinessentiel",
+      "buildNumber": "1",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#FFFEF7"
       },
-      "edgeToEdgeEnabled": true
+      "statusBar": {
+        "barStyle": "dark-content",
+        "backgroundColor": "#FFFEF7"
+      },
+      "navigationBar": {
+        "backgroundColor": "#FFFEF7",
+        "barStyle": "dark-content"
+      },
+      "package": "com.cordycepscreation.cuisinessentiel",
+      "versionCode": 1,
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "data": [
+            {
+              "scheme": "file",
+              "host": "*",
+              "mimeType": "application/x-cuisinessentiel",
+              "pathPattern": ".*\\.cuisin"
+            },
+            {
+              "scheme": "content",
+              "host": "*",
+              "mimeType": "application/x-cuisinessentiel",
+              "pathPattern": ".*\\.cuisin"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        }
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-sqlite"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "1e47f24a-64b8-4c68-bd37-b48d97011071"
+      }
     }
   }
 }
