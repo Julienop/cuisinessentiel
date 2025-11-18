@@ -19,9 +19,8 @@ import { useFocusEffect } from '@react-navigation/native';
 import { COLORS } from '../constants/colors';
 import db from '../database/db';
 import { CATEGORY_EMOJIS, CATEGORY_LABELS } from '../extractors/categoryDetector';
-import * as FileSystem from 'expo-file-system/legacy';
-import * as Sharing from 'expo-sharing';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { exportSelectedRecettes } from '../utils/exportImportManager';
 
 export default function RecetteListScreen({ navigation, route }) {
     const [sections, setSections] = useState([]);
@@ -195,33 +194,32 @@ export default function RecetteListScreen({ navigation, route }) {
             return;
         }
 
-        try {
-            const exportData = await db.exportRecettes(selectedRecettes);
-            
-            const fileName = `recettes_${selectedRecettes.length}.json`;
-            const fileUri = `${FileSystem.cacheDirectory}${fileName}`;
-            
-            await FileSystem.writeAsStringAsync(
-                fileUri,
-                JSON.stringify(exportData, null, 2)
-            );
-            
-            const isAvailable = await Sharing.isAvailableAsync();
-            
-            if (isAvailable) {
-                await Sharing.shareAsync(fileUri, {
-                    mimeType: 'application/json',
-                    dialogTitle: `Partager ${selectedRecettes.length} recette${selectedRecettes.length > 1 ? 's' : ''}`,
-                    UTI: 'public.json'
-                });
+        const result = await exportSelectedRecettes(selectedRecettes);
+        
+        if (!result.success) {
+            if (result.isPremiumRequired) {
+                Alert.alert(
+                    'Premium requis',
+                    result.error,
+                    [
+                        { text: 'Plus tard' },
+                        { 
+                            text: 'Passer Premium',
+                            onPress: () => {
+                                // TODO: Ouvrir écran Premium
+                                console.log('Redirection vers Premium');
+                            }
+                        }
+                    ]
+                );
+            } else {
+                Alert.alert('Erreur', result.error);
             }
-            
-            setSelectionMode(false);
-            setSelectedRecettes([]);
-        } catch (error) {
-            console.error('Erreur partage:', error);
-            Alert.alert('Erreur', 'Impossible de partager les recettes');
+            return;
         }
+        
+        setSelectionMode(false);
+        setSelectedRecettes([]);
     };
 
     const handleDeleteSelected = () => {

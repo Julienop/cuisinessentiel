@@ -16,6 +16,7 @@ import { COLORS } from '../constants/colors';
 import db from '../database/db';
 import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
+import premiumManager from '../utils/premiumManager';
 
 export default function ExportImportScreen({ navigation }) {
     const [exporting, setExporting] = useState(false);
@@ -31,7 +32,6 @@ export default function ExportImportScreen({ navigation }) {
             const exportData = await db.exportAllRecettes();
             
             const date = new Date().toISOString().split('T')[0];
-            // ✅ CHANGEMENT : Extension .cuisin au lieu de .json
             const fileName = `cuisinessentiel-backup-${date}.cuisin`;
             const fileUri = FileSystem.cacheDirectory + fileName;
             
@@ -75,7 +75,7 @@ export default function ExportImportScreen({ navigation }) {
 
             // Sélectionner un fichier
             const result = await DocumentPicker.getDocumentAsync({
-                type: 'application/json',
+                type: ['application/json', 'application/x-cuisinessentiel'],
                 copyToCacheDirectory: true
             });
 
@@ -96,6 +96,32 @@ export default function ExportImportScreen({ navigation }) {
                 Alert.alert(
                     'Erreur',
                     'Ce fichier ne semble pas être une sauvegarde Cuisin\'essentiel.'
+                );
+                setImporting(false);
+                return;
+            }
+
+            // Vérifier la limite avec le nombre de recettes à importer
+            const currentCount = await db.countRecettes();
+            const recettesToImport = importData.recettesCount || importData.recettes?.length || 0;
+            const futureCount = currentCount + recettesToImport;
+            
+            const check = await premiumManager.canAddRecette(futureCount - 1); // -1 car canAddRecette vérifie si on peut ajouter 1 recette
+            
+            if (!check.canAdd) {
+                Alert.alert(
+                    'Limite atteinte',
+                    `Ce fichier contient ${recettesToImport} recette(s).\n\nVous avez actuellement ${currentCount} recette(s), et la limite gratuite est de ${premiumManager.getRecetteLimit()}.\n\nPassez Premium pour importer un nombre illimité de recettes !`,
+                    [
+                        { text: 'Plus tard' },
+                        { 
+                            text: 'Passer Premium',
+                            onPress: () => {
+                                // TODO: Ouvrir l'écran Premium
+                                console.log('Redirection vers Premium à implémenter');
+                            }
+                        }
+                    ]
                 );
                 setImporting(false);
                 return;
@@ -140,7 +166,7 @@ export default function ExportImportScreen({ navigation }) {
 
                             // Sélectionner un fichier
                             const result = await DocumentPicker.getDocumentAsync({
-                                type: 'application/json',
+                                type: ['application/json', 'application/x-cuisinessentiel'],  // ✅ Accepter les deux
                                 copyToCacheDirectory: true
                             });
 
@@ -161,6 +187,32 @@ export default function ExportImportScreen({ navigation }) {
                                 Alert.alert(
                                     'Erreur',
                                     'Ce fichier ne semble pas être une sauvegarde Cuisin\'essentiel.'
+                                );
+                                setImporting(false);
+                                return;
+                            }
+
+                            // Vérifier la limite avec le nombre de recettes à importer
+                            const currentCount = await db.countRecettes();
+                            const recettesToImport = importData.recettesCount || importData.recettes?.length || 0;
+                            const futureCount = currentCount + recettesToImport;
+                            
+                            const check = await premiumManager.canAddRecette(futureCount - 1); // -1 car canAddRecette vérifie si on peut ajouter 1 recette
+                            
+                            if (!check.canAdd) {
+                                Alert.alert(
+                                    'Limite atteinte',
+                                    `Ce fichier contient ${recettesToImport} recette(s).\n\nVous avez actuellement ${currentCount} recette(s), et la limite gratuite est de ${premiumManager.getRecetteLimit()}.\n\nPassez Premium pour importer un nombre illimité de recettes !`,
+                                    [
+                                        { text: 'Plus tard' },
+                                        { 
+                                            text: 'Passer Premium',
+                                            onPress: () => {
+                                                // TODO: Ouvrir l'écran Premium
+                                                console.log('Redirection vers Premium à implémenter');
+                                            }
+                                        }
+                                    ]
                                 );
                                 setImporting(false);
                                 return;

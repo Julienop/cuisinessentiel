@@ -19,6 +19,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import { COLORS } from '../constants/colors';
 import db from '../database/db';
 import { Ionicons } from '@expo/vector-icons';
+import { exportAllRecettes, importRecettes } from '../utils/exportImportManager';
 
 // Version de l'app (à mettre à jour manuellement)
 const APP_VERSION = '1.0.0';
@@ -30,35 +31,31 @@ export default function SettingsScreen({ navigation }) {
 
     // ========== EXPORT DE LA BASE DE DONNÉES ==========
     const handleExport = async () => {
-        try {
-            const recettes = await db.getAllRecettes();
-            
-            if (recettes.length === 0) {
-                Alert.alert('Aucune recette', 'Vous n\'avez aucune recette à exporter.');
-                return;
-            }
-
-            const data = {
-                version: APP_VERSION,
-                exportDate: new Date().toISOString(),
-                recettes: recettes,
-            };
-
-            const jsonData = JSON.stringify(data, null, 2);
-            const fileName = `cuisinEssentiel_backup_${new Date().toISOString().split('T')[0]}.json`;
-            const fileUri = `${FileSystem.documentDirectory}${fileName}`;
-
-            await FileSystem.writeAsStringAsync(fileUri, jsonData);
-
-            if (await Sharing.isAvailableAsync()) {
-                await Sharing.shareAsync(fileUri);
+        const result = await exportAllRecettes();
+        
+        if (!result.success) {
+            if (result.isPremiumRequired) {
+                Alert.alert(
+                    'Premium requis',
+                    result.error,
+                    [
+                        { text: 'Plus tard' },
+                        { 
+                            text: 'Passer Premium',
+                            onPress: () => {
+                                // TODO: Ouvrir écran Premium
+                                console.log('Redirection vers Premium');
+                            }
+                        }
+                    ]
+                );
             } else {
-                Alert.alert('Succès', `Fichier sauvegardé : ${fileUri}`);
+                Alert.alert('Erreur', result.error);
             }
-        } catch (error) {
-            console.error('Erreur export:', error);
-            Alert.alert('Erreur', 'Impossible d\'exporter les recettes.');
+            return;
         }
+        
+        Alert.alert('Succès', `${result.count} recette(s) exportée(s) !`);
     };
 
     // ========== IMPORT DE LA BASE DE DONNÉES ==========
@@ -67,62 +64,47 @@ export default function SettingsScreen({ navigation }) {
             'Importer des recettes',
             'Voulez-vous remplacer toutes vos recettes ou fusionner avec les existantes ?',
             [
-                {
-                    text: 'Annuler',
-                    style: 'cancel',
-                },
-                {
-                    text: 'Fusionner',
-                    onPress: () => importRecettes(false),
-                },
-                {
-                    text: 'Remplacer',
-                    onPress: () => importRecettes(true),
-                    style: 'destructive',
-                },
+                { text: 'Annuler', style: 'cancel' },
+                { text: 'Fusionner', onPress: () => handleImportAction(false) },
+                { text: 'Remplacer', onPress: () => handleImportAction(true), style: 'destructive' },
             ]
         );
     };
 
-    const importRecettes = async (replace = false) => {
-        try {
-            const result = await DocumentPicker.getDocumentAsync({
-                type: 'application/json',
-                copyToCacheDirectory: true,
-            });
-
-            if (result.canceled) {
-                return;
-            }
-
-            const fileUri = result.assets[0].uri;
-            const fileContent = await FileSystem.readAsStringAsync(fileUri);
-            const data = JSON.parse(fileContent);
-
-            if (!data.recettes || !Array.isArray(data.recettes)) {
-                Alert.alert('Erreur', 'Format de fichier invalide.');
-                return;
-            }
-
-            if (replace) {
-                await db.deleteAllRecettes();
-            }
-
-            let imported = 0;
-            for (const recette of data.recettes) {
-                await db.addRecette(recette);
-                imported++;
-            }
-
-            Alert.alert(
-                'Succès',
-                `${imported} recette(s) importée(s) avec succès !`,
-                [{ text: 'OK', onPress: () => navigation.navigate('Home') }]
-            );
-        } catch (error) {
-            console.error('Erreur import:', error);
-            Alert.alert('Erreur', 'Impossible d\'importer les recettes.');
+    const handleImportAction = async (replace) => {
+        const result = await importRecettes(replace);
+        
+        if (result.canceled) {
+            return;
         }
+        
+        if (!result.success) {
+            if (result.isPremiumRequired) {
+                Alert.alert(
+                    'Premium requis',
+                    result.error,
+                    [
+                        { text: 'Plus tard' },
+                        { 
+                            text: 'Passer Premium',
+                            onPress: () => {
+                                // TODO: Ouvrir écran Premium
+                                console.log('Redirection vers Premium');
+                            }
+                        }
+                    ]
+                );
+            } else {
+                Alert.alert('Erreur', result.error);
+            }
+            return;
+        }
+        
+        Alert.alert(
+            'Succès',
+            `${result.imported} recette(s) importée(s) avec succès !`,
+            [{ text: 'OK', onPress: () => navigation.navigate('Home') }]
+        );
     };
 
     // ========== RÉINITIALISATION DE L'APP ==========

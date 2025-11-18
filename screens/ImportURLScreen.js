@@ -17,8 +17,7 @@ import {
     import { extractRecipeFromUrl, isValidRecipe } from '../extractors/recipeExtractor';
     import db from '../database/db';
     import { Ionicons } from '@expo/vector-icons';
-
-    const LIMITE_GRATUITE = 20;
+    import premiumManager from '../utils/premiumManager';
 
     export default function ImportURLScreen({ navigation }) {
     const [url, setUrl] = useState('');
@@ -39,21 +38,32 @@ import {
         return;
         }
 
+        // Vérifier la limite avant d'extraire
+        const count = await db.countRecettes();
+        const check = await premiumManager.canAddRecette(count);
+        
+        if (!check.canAdd) {
+            Alert.alert(
+                'Limite atteinte',
+                check.reason,
+                [
+                    { text: 'Plus tard' },
+                    { 
+                        text: 'Passer Premium',
+                        onPress: () => {
+                            // TODO: Ouvrir l'écran Premium
+                            console.log('Redirection vers Premium à implémenter');
+                        }
+                    }
+                ]
+            );
+            return;
+        }
+
         setLoading(true);
         setStatusMessage('');
 
         try {
-        // Vérifier la limite freemium AVANT l'extraction
-        const count = await db.countRecettes();
-        if (count >= LIMITE_GRATUITE) {
-            Alert.alert(
-            'Limite atteinte',
-            `Vous avez atteint la limite gratuite de ${LIMITE_GRATUITE} recettes.\n\nPassez à la version Premium pour des recettes illimitées !`,
-            [{ text: 'OK' }]
-            );
-            setLoading(false);
-            return;
-        }
 
         console.log('🔍 Extraction de la recette depuis:', url);
         setStatusMessage('Téléchargement de la page...');

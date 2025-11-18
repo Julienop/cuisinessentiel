@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS } from '../constants/colors';
 import db from '../database/db';
 import { CATEGORY_LABELS } from '../extractors/categoryDetector';
+import premiumManager from '../utils/premiumManager';
 
 export default function AddRecetteScreen({ navigation }) {
     const [titre, setTitre] = useState('');
@@ -64,6 +65,28 @@ export default function AddRecetteScreen({ navigation }) {
     };
 
     const handleSave = async () => {
+        // Vérifier la limite avant d'ajouter
+        const count = await db.countRecettes();
+        const check = await premiumManager.canAddRecette(count);
+        
+        if (!check.canAdd) {
+            Alert.alert(
+                'Limite atteinte',
+                check.reason,
+                [
+                    { text: 'Plus tard' },
+                    { 
+                        text: 'Passer Premium',
+                        onPress: () => {
+                            // TODO: Ouvrir l'écran Premium
+                            console.log('Redirection vers Premium à implémenter');
+                        }
+                    }
+                ]
+            );
+            return;
+        }
+
         // Validation basique
         if (!titre.trim()) {
             Alert.alert('Erreur', 'Veuillez saisir un titre');

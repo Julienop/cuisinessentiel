@@ -8,7 +8,7 @@ import { COLORS } from './constants/colors';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { setupDeepLinking } from './utils/deepLinking';
-
+import premiumManager from './utils/premiumManager';
 import db from './database/db';
 
 import HomeScreen from './screens/HomeScreen';
@@ -67,6 +67,8 @@ export default function App() {
     try {
       console.log('Initialisation de l\'application...');
       await db.init();
+      // initialiser le premium manager
+      await premiumManager.init();
       setDbReady(true);
       console.log('Application initialisée avec succès');
     } catch (error) {

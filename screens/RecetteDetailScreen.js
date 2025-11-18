@@ -18,9 +18,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS } from '../constants/colors';
 import db from '../database/db';
 import { recalculateIngredients } from '../utils/portionCalculator';
-import * as FileSystem from 'expo-file-system/legacy';
-import * as Sharing from 'expo-sharing';
 import { Ionicons } from '@expo/vector-icons';
+import { exportSingleRecette } from '../utils/exportImportManager';
+import premiumManager from '../utils/premiumManager';
 
 export default function RecetteDetailScreen({ navigation, route }) {
     const { recetteId } = route.params;
@@ -122,46 +122,54 @@ export default function RecetteDetailScreen({ navigation, route }) {
     };
 
     const handleShare = async () => {
-        try {
-            // Exporter la recette en JSON
-            const exportData = await db.exportRecette(recetteId);
-            
-            // Créer le nom du fichier
-            const fileName = `${recette.titre.replace(/[^a-z0-9]/gi, '_')}.cuisin`;  // ✅ .cuisin
-            const fileUri = `${FileSystem.cacheDirectory}${fileName}`;
-            
-            // Écrire le fichier
-            await FileSystem.writeAsStringAsync(
-                fileUri,
-                JSON.stringify(exportData, null, 2)
-            );
-            
-            // Vérifier si le partage est disponible
-            const isAvailable = await Sharing.isAvailableAsync();
-            
-            if (isAvailable) {
-                // Partager le fichier
-                await Sharing.shareAsync(fileUri, {
-                    mimeType: 'application/x-cuisinessentiel',  // ✅ MIME type personnalisé
-                    dialogTitle: `Partager la recette : ${recette.titre}`,
-                    UTI: 'com.cordycepscreation.cuisinessentiel'  // ✅ UTI personnalisé
-                });
+        const result = await exportSingleRecette(recetteId, recette.titre);
+        
+        if (!result.success) {
+            if (result.isPremiumRequired) {
+                Alert.alert(
+                    'Premium requis',
+                    result.error,
+                    [
+                        { text: 'Plus tard' },
+                        { 
+                            text: 'Passer Premium',
+                            onPress: () => {
+                                // TODO: Ouvrir écran Premium
+                                console.log('Redirection vers Premium');
+                            }
+                        }
+                    ]
+                );
             } else {
-                // Fallback : utiliser le Share natif de React Native
-                await Share.share({
-                    message: `Voici la recette : ${recette.titre}`,
-                    title: recette.titre,
-                });
+                Alert.alert('Erreur', result.error);
             }
-            
-            console.log('✅ Recette partagée');
-        } catch (error) {
-            console.error('Erreur partage:', error);
-            Alert.alert('Erreur', 'Impossible de partager la recette');
+            return;
         }
+        
+        console.log('✅ Recette partagée');
     };
 
     const handleAddToShoppingList = async () => {
+        // Vérifier premium
+        const check = premiumManager.canAccessFeature('shopping_list');
+        if (!check.canAccess) {
+            Alert.alert(
+                'Premium requis',
+                check.reason,
+                [
+                    { text: 'Plus tard' },
+                    { 
+                        text: 'Passer Premium',
+                        onPress: () => {
+                            // TODO: Ouvrir écran Premium
+                            console.log('Redirection vers Premium');
+                        }
+                    }
+                ]
+            );
+            return;
+        }
+
         try {
             // Utiliser les ingrédients ajustés selon le nombre de portions sélectionné
             await db.addIngredientsToShoppingList(

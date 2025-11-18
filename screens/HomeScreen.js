@@ -15,6 +15,8 @@ import {
     import { COLORS } from '../constants/colors';
     import db from '../database/db';
     import { Ionicons } from '@expo/vector-icons';
+    import premiumManager from '../utils/premiumManager';
+    import { Alert } from 'react-native';
 
     export default function HomeScreen({ navigation }) {
     const [stats, setStats] = useState({
@@ -157,7 +159,27 @@ import {
 
             <TouchableOpacity
                 style={styles.secondaryButton}
-                onPress={() => navigation.navigate('ShoppingList')}
+                onPress={() => {
+                    const check = premiumManager.canAccessFeature('shopping_list');
+                    if (!check.canAccess) {
+                        Alert.alert(
+                            'Premium requis',
+                            check.reason,
+                            [
+                                { text: 'Plus tard' },
+                                { 
+                                    text: 'Passer Premium',
+                                    onPress: () => {
+                                        // TODO: Ouvrir écran Premium
+                                        console.log('Redirection vers Premium');
+                                    }
+                                }
+                            ]
+                        );
+                        return;
+                    }
+                    navigation.navigate('ShoppingList');
+                }}
             >
                 <Ionicons name="list-outline" size={24} color={COLORS.marron} />
                 <Text style={styles.secondaryButtonText}>Liste de courses</Text>
