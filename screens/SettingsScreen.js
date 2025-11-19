@@ -12,6 +12,7 @@ import {
     Modal,
     Linking,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
@@ -20,6 +21,7 @@ import { COLORS } from '../constants/colors';
 import db from '../database/db';
 import { Ionicons } from '@expo/vector-icons';
 import { exportAllRecettes, importRecettes } from '../utils/exportImportManager';
+import premiumManager from '../utils/premiumManager';
 
 // Version de l'app (à mettre à jour manuellement)
 const APP_VERSION = '1.0.0';
@@ -28,6 +30,13 @@ export default function SettingsScreen({ navigation }) {
     const [aboutModalVisible, setAboutModalVisible] = useState(false);
     const [privacyModalVisible, setPrivacyModalVisible] = useState(false);
     const [compatibilityModalVisible, setCompatibilityModalVisible] = useState(false);
+    const [isPremium, setIsPremium] = useState(premiumManager.isPremium());
+
+    useFocusEffect(
+        React.useCallback(() => {
+            setIsPremium(premiumManager.isPremium());
+        }, [])
+    );
 
     // ========== EXPORT DE LA BASE DE DONNÉES ==========
     const handleExport = async () => {
@@ -42,10 +51,7 @@ export default function SettingsScreen({ navigation }) {
                         { text: 'Plus tard' },
                         { 
                             text: 'Passer Premium',
-                            onPress: () => {
-                                // TODO: Ouvrir écran Premium
-                                console.log('Redirection vers Premium');
-                            }
+                            onPress: () => navigation.navigate('Premium')
                         }
                     ]
                 );
@@ -87,10 +93,7 @@ export default function SettingsScreen({ navigation }) {
                         { text: 'Plus tard' },
                         { 
                             text: 'Passer Premium',
-                            onPress: () => {
-                                // TODO: Ouvrir écran Premium
-                                console.log('Redirection vers Premium');
-                            }
+                            onPress: () => navigation.navigate('Premium')
                         }
                     ]
                 );
@@ -152,6 +155,44 @@ export default function SettingsScreen({ navigation }) {
         <SafeAreaView style={styles.safeArea} edges={['bottom']}>
             <ScrollView style={styles.container}>
                 
+                {/* ✅ NOUVELLE Section Premium */}
+                <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>Statut</Text>
+                    
+                    {isPremium ? (
+                        <View style={styles.premiumBadge}>
+                            <View style={styles.premiumBadgeContent}>
+                                <Ionicons name="star" size={24} color="#FFD700" />
+                                <View style={styles.premiumTextContainer}>
+                                    <Text style={styles.premiumTitle}>Vous êtes Premium !</Text>
+                                    <Text style={styles.premiumSubtitle}>Merci pour votre soutien 💚</Text>
+                                </View>
+                            </View>
+                        </View>
+                    ) : (
+                        <TouchableOpacity
+                            style={styles.upgradeButton}
+                            onPress={() => navigation.navigate('Premium')}
+                        >
+                            <View style={styles.upgradeContent}>
+                                <Ionicons name="star-outline" size={20} color={COLORS.marron} />
+                                <View style={styles.upgradeTextContainer}>
+                                    <Text style={styles.upgradeTitle}>Passer Premium</Text>
+                                    <Text style={styles.upgradeSubtitle}>Débloquez toutes les fonctionnalités</Text>
+                                </View>
+                            </View>
+                            <Ionicons name="chevron-forward" size={20} color={COLORS.accent} />
+                        </TouchableOpacity>
+                    )}
+                </View>
+
+                {/* <TouchableOpacity onPress={async () => {
+                    await premiumManager.resetPremium();
+                    setIsPremium(false);
+                }}>
+                    <Text>🔄 Reset Premium (debug)</Text>
+                </TouchableOpacity> */}
+
                 {/* Section Informations */}
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>Informations</Text>
@@ -546,5 +587,55 @@ const styles = StyleSheet.create({
         color: COLORS.background,
         fontSize: 16,
         fontWeight: '600',
+    },
+    premiumBadge: {
+        backgroundColor: COLORS.beigeclair,
+        padding: 12,
+        borderRadius: 8,
+    },
+    premiumBadgeContent: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+    },
+    premiumTextContainer: {
+        flex: 1,
+    },
+    premiumTitle: {
+        fontSize: 18,
+        fontWeight: '600',
+        color: COLORS.text,
+        marginBottom: 2,
+    },
+    premiumSubtitle: {
+        fontSize: 14,
+        color: COLORS.accent,
+    },
+    upgradeButton: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        backgroundColor: COLORS.beigeclair,
+        padding: 12,
+        borderRadius: 8,
+    },
+    upgradeContent: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+        flex: 1,
+    },
+    upgradeTextContainer: {
+        flex: 1,
+    },
+    upgradeTitle: {
+        fontSize: 18,
+        fontWeight: '600',
+        color: COLORS.marron,
+        marginBottom: 2,
+    },
+    upgradeSubtitle: {
+        fontSize: 14,
+        color: COLORS.accent,
     },
 });

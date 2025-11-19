@@ -21,6 +21,7 @@ import CookingModeScreen from './screens/CookingModeScreen';
 import ShoppingListScreen from './screens/ShoppingListScreen';
 import ExportImportScreen from './screens/ExportImportScreen';
 import SettingsScreen from './screens/SettingsScreen';
+import PremiumScreen from './screens/PremiumScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -191,6 +192,15 @@ export default function App() {
               headerTitle: () => <HeaderWithLogo title="Paramètres" />,
               headerRight: () => <View />,
             })}
+          />
+
+          <Stack.Screen 
+            name="Premium" 
+            component={PremiumScreen}
+            options={{ 
+              headerTitle: () => <HeaderWithLogo title="Premium" />,
+              presentation: 'modal',
+            }}
           />
 
         </Stack.Navigator>

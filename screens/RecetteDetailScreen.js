@@ -133,10 +133,7 @@ export default function RecetteDetailScreen({ navigation, route }) {
                         { text: 'Plus tard' },
                         { 
                             text: 'Passer Premium',
-                            onPress: () => {
-                                // TODO: Ouvrir écran Premium
-                                console.log('Redirection vers Premium');
-                            }
+                            onPress: () => navigation.navigate('Premium')
                         }
                     ]
                 );
@@ -160,10 +157,7 @@ export default function RecetteDetailScreen({ navigation, route }) {
                     { text: 'Plus tard' },
                     { 
                         text: 'Passer Premium',
-                        onPress: () => {
-                            // TODO: Ouvrir écran Premium
-                            console.log('Redirection vers Premium');
-                        }
+                        onPress: () => navigation.navigate('Premium')
                     }
                 ]
             );

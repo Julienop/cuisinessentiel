@@ -50,10 +50,7 @@ import {
                     { text: 'Plus tard' },
                     { 
                         text: 'Passer Premium',
-                        onPress: () => {
-                            // TODO: Ouvrir l'écran Premium
-                            console.log('Redirection vers Premium à implémenter');
-                        }
+                        onPress: () => navigation.navigate('Premium')
                     }
                 ]
             );

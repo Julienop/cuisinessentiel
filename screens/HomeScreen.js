@@ -15,8 +15,8 @@ import {
     import { COLORS } from '../constants/colors';
     import db from '../database/db';
     import { Ionicons } from '@expo/vector-icons';
-    import premiumManager from '../utils/premiumManager';
     import { Alert } from 'react-native';
+    import premiumManager, { LIMITE_RECETTES_GRATUIT } from '../utils/premiumManager';
 
     export default function HomeScreen({ navigation }) {
     const [stats, setStats] = useState({
@@ -128,6 +128,32 @@ import {
             </View>
             </View>
 
+            {/* Indicateur de limite pour gratuits */}
+            {!premiumManager.isPremium() && (
+                <View style={styles.limitContainer}>
+                    <View style={styles.limitContent}>
+                        <View style={styles.limitTextContainer}>
+                            <Text style={styles.limitLabel}>Version gratuite</Text>
+                            <Text style={styles.limitCount}>
+                                {stats.total} / {LIMITE_RECETTES_GRATUIT} recettes
+                            </Text>
+                        </View>
+                        <TouchableOpacity
+                            style={styles.upgradeSmallButton}
+                            onPress={() => navigation.navigate('Premium')}
+                        >
+                            <Ionicons name="star" size={16} color="#FFD700" />
+                            <Text style={styles.upgradeSmallText}>Premium</Text>
+                        </TouchableOpacity>
+                    </View>
+                    {stats.total >= LIMITE_RECETTES_GRATUIT && (
+                        <Text style={styles.limitWarning}>
+                            ⚠️ Passez Premium pour ajouter plus de recettes
+                        </Text>
+                    )}
+                </View>
+            )}
+
             {/* Actions principales */}
             <View style={styles.actionsContainer}>
             <TouchableOpacity
@@ -169,10 +195,7 @@ import {
                                 { text: 'Plus tard' },
                                 { 
                                     text: 'Passer Premium',
-                                    onPress: () => {
-                                        // TODO: Ouvrir écran Premium
-                                        console.log('Redirection vers Premium');
-                                    }
+                                    onPress: () => navigation.navigate('Premium')
                                 }
                             ]
                         );
@@ -364,5 +387,53 @@ import {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 8,
+    },
+    limitContainer: {
+        marginHorizontal: 24,
+        marginTop: 0,
+        marginBottom: 4,
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        backgroundColor: COLORS.beigeclair,
+        borderRadius: 8,
+    },
+    limitContent: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+    },
+    limitTextContainer: {
+        flex: 1,
+    },
+    limitLabel: {
+        fontSize: 12,
+        color: COLORS.accent,
+        fontWeight: '500',
+        marginBottom: 4,
+    },
+    limitCount: {
+        fontSize: 14,
+        fontWeight: '700',
+        color: COLORS.accent,
+    },
+    upgradeSmallButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        backgroundColor: COLORS.marron,
+        paddingVertical: 8,
+        paddingHorizontal: 12,
+        borderRadius: 20,
+    },
+    upgradeSmallText: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: COLORS.background,
+    },
+    limitWarning: {
+        fontSize: 14,
+        color: '#D97706',
+        marginTop: 6,
+        fontWeight: '500',
     },
 });
