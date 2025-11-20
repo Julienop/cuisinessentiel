@@ -1,0 +1,10 @@
+Starting project at /media/julien/DATA/Dev/Projets/Cuisin'Essentiel/cuisinessentiel
+Starting Metro Bundler
+warning: Bundler cache is empty, rebuilding (this may take a minute)
+Waiting on http://localhost:8081
+Logs for your project will appear below.
+Android node_modules/expo/AppEntry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Android node_modules/expo/AppEntry.js ▓▓▓▓░░░░░░░░░░░░ 25.0% (154/341)
+Android node_modules/expo/AppEntry.js ▓▓▓▓▓▓▓▓▓▓░░░░░░ 66.4% (740/908)
+Android node_modules/expo/AppEntry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 99.8% (1126/1127)
+Android Bundled 11117ms node_modules/expo/AppEntry.js (1127 modules)

@@ -12,20 +12,45 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS } from '../constants/colors';
 import { Ionicons } from '@expo/vector-icons';
 import premiumManager, { LIMITE_RECETTES_GRATUIT } from '../utils/premiumManager';
+import iapManager from '../utils/iapManager';
+import { useFocusEffect } from '@react-navigation/native';
 
 export default function PremiumScreen({ navigation }) {
     const [purchasing, setPurchasing] = useState(false);
+    const [price, setPrice] = useState('4,99 €');
+
+    useFocusEffect(
+        React.useCallback(() => {
+            loadPrice();
+        }, [])
+    );
+
+    const loadPrice = async () => {
+        const product = iapManager.getPremiumProduct();
+        if (product && product.localizedPrice) {
+            setPrice(product.localizedPrice);
+        }
+    };
 
     const handlePurchase = async () => {
         setPurchasing(true);
         
-        // TODO: Intégrer le vrai paiement plus tard
-        // Pour l'instant, on simule juste
-        setTimeout(async () => {
-            await premiumManager.activatePremium();
-            setPurchasing(false);
+        const result = await iapManager.purchasePremium();
+        
+        setPurchasing(false);
+        
+        // Si l'achat est réussi, on ferme l'écran
+        if (result && !result.cancelled) {
             navigation.goBack();
-        }, 1500);
+        }
+    };
+
+    const handleRestore = async () => {
+        const result = await iapManager.restorePurchases();
+        
+        if (result && result.restored) {
+            navigation.goBack();
+        }
     };
 
     return (
@@ -111,7 +136,7 @@ export default function PremiumScreen({ navigation }) {
                 {/* Prix */}
                 <View style={styles.priceContainer}>
                     <Text style={styles.priceLabel}>Paiement unique</Text>
-                    <Text style={styles.price}>4,99 €</Text>
+                    <Text style={styles.price}>{price}</Text>
                     <Text style={styles.priceSubtext}>Pas d'abonnement, à vie</Text>
                 </View>
 
@@ -128,17 +153,14 @@ export default function PremiumScreen({ navigation }) {
                         <ActivityIndicator color={COLORS.background} />
                     ) : (
                         <Text style={styles.purchaseButtonText}>
-                            Débloquer Premium - 4,99 €
+                            Débloquer Premium - {price}
                         </Text>
                     )}
                 </TouchableOpacity>
 
                 <TouchableOpacity
                     style={styles.restoreButton}
-                    onPress={() => {
-                        // TODO: Restaurer les achats
-                        console.log('Restauration des achats');
-                    }}
+                    onPress={handleRestore}  // ✅ Connecté !
                 >
                     <Text style={styles.restoreButtonText}>
                         Restaurer mes achats

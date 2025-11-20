@@ -4,6 +4,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const PREMIUM_KEY = '@cuisinessentiel_premium';
 const LIMITE_RECETTES_GRATUIT = 15;
 
+// 🔧 MODE DEV - Mettre à false avant publication !
+const DEV_FORCE_PREMIUM = false;
+
 class PremiumManager {
     constructor() {
         this.isPremiumUser = false;
@@ -15,6 +18,14 @@ class PremiumManager {
      */
     async init() {
         try {
+            // MODE DEV : Forcer le premium en développement
+            if (__DEV__ && DEV_FORCE_PREMIUM) {
+                this.isPremiumUser = true;
+                this.isInitialized = true;
+                console.log('🔧 MODE DEV: Premium forcé');
+                return;
+            }
+
             const premiumStatus = await AsyncStorage.getItem(PREMIUM_KEY);
             this.isPremiumUser = premiumStatus === 'true';
             this.isInitialized = true;
@@ -30,6 +41,11 @@ class PremiumManager {
      * Vérifier si l'utilisateur est premium
      */
     isPremium() {
+        // MODE DEV : Forcer le premium en développement
+        if (__DEV__ && DEV_FORCE_PREMIUM) {
+            return true;
+        }
+        
         return this.isPremiumUser;
     }
 

@@ -6,7 +6,7 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
+    "newArchEnabled": false,
     "scheme": "cuisinessentiel",
     "splash": {
       "image": "./assets/splash-icon.png",
@@ -64,7 +64,13 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-sqlite"
+      "expo-sqlite",
+      [
+        "react-native-iap",
+        {
+          "providesBilling": true
+        }
+      ]
     ],
     "extra": {
       "eas": {

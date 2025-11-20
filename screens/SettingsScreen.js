@@ -165,7 +165,7 @@ export default function SettingsScreen({ navigation }) {
                                 <Ionicons name="star" size={24} color="#FFD700" />
                                 <View style={styles.premiumTextContainer}>
                                     <Text style={styles.premiumTitle}>Vous êtes Premium !</Text>
-                                    <Text style={styles.premiumSubtitle}>Merci pour votre soutien 💚</Text>
+                                    <Text style={styles.premiumSubtitle}>Merci pour votre soutien  💚</Text>
                                 </View>
                             </View>
                         </View>

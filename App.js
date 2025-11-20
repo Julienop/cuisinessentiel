@@ -22,6 +22,7 @@ import ShoppingListScreen from './screens/ShoppingListScreen';
 import ExportImportScreen from './screens/ExportImportScreen';
 import SettingsScreen from './screens/SettingsScreen';
 import PremiumScreen from './screens/PremiumScreen';
+import iapManager from './utils/iapManager';
 
 const Stack = createNativeStackNavigator();
 
@@ -64,12 +65,20 @@ export default function App() {
     }
   }, [dbReady]);
 
+  useEffect(() => {
+    return () => {
+        iapManager.cleanup();
+    };
+  }, []);
+
   const initializeApp = async () => {
     try {
       console.log('Initialisation de l\'application...');
       await db.init();
       // initialiser le premium manager
       await premiumManager.init();
+      // Initialiser IAP
+      await iapManager.init();
       setDbReady(true);
       console.log('Application initialisée avec succès');
     } catch (error) {
