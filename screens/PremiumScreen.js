@@ -185,7 +185,7 @@ const styles = StyleSheet.create({
     },
     content: {
         padding: 24,
-        paddingBottom: 200, // Espace pour les boutons fixes
+        paddingBottom: 280, // Espace pour les boutons fixes
     },
     iconContainer: {
         alignItems: 'center',
@@ -214,7 +214,7 @@ const styles = StyleSheet.create({
     },
     featuresContainer: {
         gap: 20,
-        marginBottom: 32,
+        marginBottom: 12,
     },
     feature: {
         flexDirection: 'row',
@@ -244,10 +244,7 @@ const styles = StyleSheet.create({
     },
     priceContainer: {
         alignItems: 'center',
-        paddingVertical: 32,
-        borderTopWidth: 1,
-        borderBottomWidth: 1,
-        borderColor: COLORS.border,
+        paddingVertical: 24,
     },
     priceLabel: {
         fontSize: 14,
@@ -257,7 +254,7 @@ const styles = StyleSheet.create({
     price: {
         fontSize: 48,
         fontWeight: '700',
-        color: COLORS.marron,
+        color: COLORS.green,
         marginBottom: 4,
     },
     priceSubtext: {

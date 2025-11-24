@@ -134,6 +134,10 @@ import {
                 onPress: () => navigation.navigate('AddRecette'),
             },
             { text: 'Réessayer' },
+            {
+                text: 'Abandonner',
+                onPress: () => navigation.goBack()  // Retour à l'écran précédent
+            },
             ]
         );
         }

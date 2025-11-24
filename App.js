@@ -3,7 +3,8 @@ import React, { useEffect, useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
-import { ActivityIndicator, View, StyleSheet, Image, Text, TouchableOpacity } from 'react-native';
+import { StatusBar as RNStatusBar } from 'react-native';
+import { ActivityIndicator, View, StyleSheet, Image, Text, TouchableOpacity, Platform } from 'react-native';
 import { COLORS } from './constants/colors';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -69,6 +70,13 @@ export default function App() {
     return () => {
         iapManager.cleanup();
     };
+  }, []);
+
+  useEffect(() => {
+    // Forcer la navigationBar en mode sombre (boutons foncés)
+    if (Platform.OS === 'android') {
+        RNStatusBar.setBarStyle('dark-content');
+    }
   }, []);
 
   const initializeApp = async () => {

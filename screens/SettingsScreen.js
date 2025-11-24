@@ -404,6 +404,7 @@ export default function SettingsScreen({ navigation }) {
                                 {'\n'}• Les délices de Karinette
                                 {'\n\n'}
                                 <Ionicons name="cloud-offline" size={16} color={COLORS.marron} /> <Text style={styles.modalBold}>Sites incompatibles :</Text>
+                                {'\n'}• L'atelier des chefs
                                 {'\n'}• La cuisine de Bernard
                                 {'\n'}• Carrefour recettes
                                 {'\n\n'}

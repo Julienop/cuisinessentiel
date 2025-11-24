@@ -14,16 +14,28 @@ import {
     Vibration,
     Alert,
     AppState,
-    } from 'react-native';
-    import { SafeAreaView } from 'react-native-safe-area-context';
-    import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
-    import { Audio } from 'expo-av';
-    import { COLORS } from '../constants/colors';
-    import db from '../database/db';
-    import { detectAllDurations, formatDuration, formatRemainingTime } from '../utils/timeParser';
-    import { Ionicons } from '@expo/vector-icons';
+    Platform,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
+import { Audio } from 'expo-av';
+import * as Notifications from 'expo-notifications';
+import { COLORS } from '../constants/colors';
+import db from '../database/db';
+import { detectAllDurations, formatDuration, formatRemainingTime } from '../utils/timeParser';
+import { Ionicons } from '@expo/vector-icons';
 
-    export default function CookingModeScreen({ navigation, route }) {
+// Configuration des notifications
+Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+        shouldShowBanner: true,
+        shouldShowList: true,
+        shouldPlaySound: true,
+        shouldSetBadge: false,
+    }),
+});
+
+export default function CookingModeScreen({ navigation, route }) {
     const { recetteId, selectedPortions, adjustedIngredients } = route.params;
     
     const [recette, setRecette] = useState(null);
@@ -31,7 +43,7 @@ import {
     const [activeStep, setActiveStep] = useState(0);
     
     // États pour les timers
-    const [timers, setTimers] = useState([]); // [{id, stepIndex, initialMinutes, remainingSeconds, isRunning, startTime}]
+    const [timers, setTimers] = useState([]); // [{id, stepIndex, initialMinutes, remainingSeconds, isRunning, startTime, notificationId}]
     const [showTimerModal, setShowTimerModal] = useState(false);
     const [timerMinutes, setTimerMinutes] = useState('');
     const [timerStepIndex, setTimerStepIndex] = useState(null);
@@ -44,6 +56,12 @@ import {
         // ✅ ACTIVER le keep awake uniquement pour ce screen
         activateKeepAwakeAsync();
 
+        // Créer un canal de notification Android avec le son personnalisé
+        setupNotificationChannel();
+
+        // Demander les permissions pour les notifications
+        requestNotificationPermissions();
+
         // Configurer l'audio
         Audio.setAudioModeAsync({
             playsInSilentModeIOS: true,
@@ -55,13 +73,24 @@ import {
         // Écouter les changements d'état de l'app (background/foreground)
         const subscription = AppState.addEventListener('change', handleAppStateChange);
         
+        // Écouter uniquement quand l'utilisateur clique sur la notification
+        const responseListener = Notifications.addNotificationResponseReceivedListener(response => {
+            const timerId = response.notification.request.content.data?.timerId;
+            if (timerId) {
+                removeTimer(timerId);
+            }
+        });
+        
         // Cleanup des timers à la sortie
         return () => {
-            // ✅ DÉSACTIVER le keep awake quand on quitte
             deactivateKeepAwake();
             
             Object.values(intervalRefs.current).forEach(clearInterval);
             subscription.remove();
+            responseListener.remove();
+            
+            // Annuler toutes les notifications programmées
+            Notifications.cancelAllScheduledNotificationsAsync();
             
             // Nettoyer le son
             if (soundRef.current) {
@@ -70,32 +99,57 @@ import {
         };
     }, [recetteId]);
 
+    const setupNotificationChannel = async () => {
+        if (Platform.OS === 'android') {
+            await Notifications.setNotificationChannelAsync('timer-channel', {
+                name: 'Timers de cuisine',
+                importance: Notifications.AndroidImportance.MAX,
+                sound: 'timer-alarm.mp3', // Le fichier dans assets/sounds/
+                vibrationPattern: [0, 250, 250, 250],
+                enableVibrate: true,
+                enableLights: true,
+                lightColor: '#FF0000',
+                bypassDnd: true,
+            });
+        }
+    };
+
+    const requestNotificationPermissions = async () => {
+        const { status } = await Notifications.requestPermissionsAsync();
+        if (status !== 'granted') {
+            Alert.alert(
+                'Notifications désactivées',
+                'Les notifications sont nécessaires pour que les timers sonnent en arrière-plan.'
+            );
+        }
+    };
+
     const handleAppStateChange = (nextAppState) => {
         if (appState.current.match(/inactive|background/) && nextAppState === 'active') {
-        // L'app revient au foreground, recalculer les timers
-        recalculateTimers();
+            // L'app revient au foreground, recalculer les timers
+            recalculateTimers();
         }
         appState.current = nextAppState;
     };
 
     const recalculateTimers = () => {
         setTimers(prev => prev.map(timer => {
-        if (!timer.isRunning || !timer.startTime) return timer;
-        
-        const now = Date.now();
-        const elapsedSeconds = Math.floor((now - timer.startTime) / 1000);
-        const newRemainingSeconds = Math.max(0, timer.initialMinutes * 60 - elapsedSeconds);
-        
-        if (newRemainingSeconds === 0) {
-            // Le timer est terminé pendant qu'on était en background
-            clearInterval(intervalRefs.current[timer.id]);
-            handleTimerFinished(timer.id);
-        }
-        
-        return {
-            ...timer,
-            remainingSeconds: newRemainingSeconds
-        };
+            if (!timer.isRunning || !timer.startTime) return timer;
+            
+            const now = Date.now();
+            const elapsedSeconds = Math.floor((now - timer.startTime) / 1000);
+            const newRemainingSeconds = Math.max(0, timer.initialMinutes * 60 - elapsedSeconds);
+            
+            if (newRemainingSeconds === 0) {
+                // Le timer est terminé pendant qu'on était en background
+                clearInterval(intervalRefs.current[timer.id]);
+                handleTimerFinished(timer.id);
+            }
+            
+            return {
+                ...timer,
+                remainingSeconds: newRemainingSeconds
+            };
         }));
     };
 
@@ -124,28 +178,28 @@ import {
         // Demander confirmation si des timers sont actifs
         const activeTimers = timers.filter(t => t.isRunning);
         if (activeTimers.length > 0) {
-        Alert.alert(
-            'Timers en cours',
-            'Des timers sont encore actifs. Voulez-vous vraiment quitter ?',
-            [
-            { text: 'Annuler', style: 'cancel' },
-            { text: 'Quitter', style: 'destructive', onPress: () => navigation.goBack() }
-            ]
-        );
+            Alert.alert(
+                'Timers en cours',
+                'Des timers sont encore actifs. Voulez-vous vraiment quitter ?',
+                [
+                    { text: 'Annuler', style: 'cancel' },
+                    { text: 'Quitter', style: 'destructive', onPress: () => navigation.goBack() }
+                ]
+            );
         } else {
-        navigation.goBack();
+            navigation.goBack();
         }
     };
 
     const handleNextStep = () => {
         if (recette && activeStep < recette.instructions.length - 1) {
-        setActiveStep(activeStep + 1);
+            setActiveStep(activeStep + 1);
         }
     };
 
     const handlePreviousStep = () => {
         if (activeStep > 0) {
-        setActiveStep(activeStep - 1);
+            setActiveStep(activeStep - 1);
         }
     };
 
@@ -156,20 +210,48 @@ import {
         setShowTimerModal(true);
     };
 
-    const handleStartTimer = () => {
+    const handleStartTimer = async () => {
         const minutes = parseInt(timerMinutes);
         if (isNaN(minutes) || minutes <= 0) {
-        Alert.alert('Erreur', 'Veuillez entrer une durée valide');
-        return;
+            Alert.alert('Erreur', 'Veuillez entrer une durée valide');
+            return;
         }
 
+        const timerId = Date.now();
+        const triggerDate = new Date(Date.now() + minutes * 60 * 1000);
+
+        console.log(`🔔 Programmation notification pour ${minutes} minutes`);
+        console.log(`📅 Date de déclenchement : ${triggerDate.toLocaleString()}`);
+
+        // Programmer une notification locale avec le format correct
+        const notificationId = await Notifications.scheduleNotificationAsync({
+            content: {
+                title: '⏰ Timer terminé !',
+                body: `Votre timer de ${minutes} minute${minutes > 1 ? 's' : ''} est terminé`,
+                sound: 'timer-alarm.mp3',
+                priority: Notifications.AndroidNotificationPriority.MAX,
+                data: { timerId },
+                android: {
+                    channelId: 'timer-channel',
+                },
+            },
+            trigger: {
+                type: 'date',
+                date: triggerDate,
+                channelId: 'timer-channel',
+            },
+        });
+
+        console.log(`✅ Notification programmée avec ID: ${notificationId}`);
+
         const newTimer = {
-        id: Date.now(),
-        stepIndex: timerStepIndex,
-        initialMinutes: minutes,
-        remainingSeconds: minutes * 60,
-        isRunning: true,
-        startTime: Date.now(), // Timestamp de démarrage
+            id: timerId,
+            stepIndex: timerStepIndex,
+            initialMinutes: minutes,
+            remainingSeconds: minutes * 60,
+            isRunning: true,
+            startTime: Date.now(),
+            notificationId,
         };
 
         setTimers([...timers, newTimer]);
@@ -229,30 +311,69 @@ import {
         // Le timer reste visible à 00:00 pour permettre l'arrêt manuel
     };
 
-    const pauseTimer = (timerId) => {
+    const pauseTimer = async (timerId) => {
         clearInterval(intervalRefs.current[timerId]);
+        
+        // Annuler la notification programmée
+        const timer = timers.find(t => t.id === timerId);
+        if (timer?.notificationId) {
+            await Notifications.cancelScheduledNotificationAsync(timer.notificationId);
+        }
+        
         setTimers(prev => prev.map(t => 
-        t.id === timerId ? { ...t, isRunning: false } : t
+            t.id === timerId ? { ...t, isRunning: false } : t
         ));
     };
 
-    const resumeTimer = (timerId) => {
+    const resumeTimer = async (timerId) => {
         const timer = timers.find(t => t.id === timerId);
         if (timer) {
-        // Recalculer le startTime en fonction du temps restant
-        const newStartTime = Date.now() - ((timer.initialMinutes * 60 - timer.remainingSeconds) * 1000);
-        
-        setTimers(prev => prev.map(t => 
-            t.id === timerId ? { ...t, isRunning: true, startTime: newStartTime } : t
-        ));
-        
-        startTimerInterval(timerId);
+            // Recalculer le startTime en fonction du temps restant
+            const newStartTime = Date.now() - ((timer.initialMinutes * 60 - timer.remainingSeconds) * 1000);
+            
+            // Calculer la date de déclenchement pour le temps restant
+            const triggerDate = new Date(Date.now() + timer.remainingSeconds * 1000);
+            
+            console.log(`▶️ Reprise timer - Temps restant: ${timer.remainingSeconds}s`);
+            console.log(`📅 Nouvelle date de déclenchement : ${triggerDate.toLocaleString()}`);
+            
+            // Reprogrammer la notification pour le temps restant
+            const notificationId = await Notifications.scheduleNotificationAsync({
+                content: {
+                    title: '⏰ Timer terminé !',
+                    body: `Le timer est terminé`,
+                    sound: 'timer-alarm.mp3',
+                    priority: Notifications.AndroidNotificationPriority.MAX,
+                    data: { timerId },
+                    android: {
+                        channelId: 'timer-channel',
+                    },
+                },
+                trigger: {
+                    type: 'date',  // ← Même format que handleStartTimer
+                    date: triggerDate,
+                    channelId: 'timer-channel',
+                },
+            });
+            
+            setTimers(prev => prev.map(t => 
+                t.id === timerId ? { ...t, isRunning: true, startTime: newStartTime, notificationId } : t
+            ));
+            
+            startTimerInterval(timerId);
         }
     };
 
-    const removeTimer = (timerId) => {
+    const removeTimer = async (timerId) => {
         clearInterval(intervalRefs.current[timerId]);
         delete intervalRefs.current[timerId];
+        
+        // Annuler la notification programmée
+        const timer = timers.find(t => t.id === timerId);
+        if (timer?.notificationId) {
+            await Notifications.cancelScheduledNotificationAsync(timer.notificationId);
+        }
+        
         setTimers(prev => prev.filter(t => t.id !== timerId));
         
         // Arrêter le son si en cours de lecture
@@ -269,20 +390,20 @@ import {
 
     if (loading) {
         return (
-        <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={COLORS.text} />
-        </View>
+            <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color={COLORS.text} />
+            </View>
         );
     }
 
     if (!recette) {
         return (
-        <View style={styles.loadingContainer}>
-            <Text style={styles.errorText}>Recette introuvable</Text>
-            <TouchableOpacity style={styles.closeButton} onPress={handleClose}>
-            <Text style={styles.closeButtonText}>Fermer</Text>
-            </TouchableOpacity>
-        </View>
+            <View style={styles.loadingContainer}>
+                <Text style={styles.errorText}>Recette introuvable</Text>
+                <TouchableOpacity style={styles.closeButton} onPress={handleClose}>
+                    <Text style={styles.closeButtonText}>Fermer</Text>
+                </TouchableOpacity>
+            </View>
         );
     }
 
@@ -291,265 +412,265 @@ import {
 
     return (
         <SafeAreaView style={styles.container}>
-        {/* Header fixe avec badge timers */}
-        <View style={styles.header}>
-            <TouchableOpacity onPress={handleClose} style={styles.closeIconButton}>
-            <Text style={styles.closeIcon}>✕</Text>
-            </TouchableOpacity>
-            <Text style={styles.headerTitle} numberOfLines={1}>
-            {recette.titre}
-            </Text>
-            
-            {/* Badge timers actifs */}
-            {timers.length > 0 && (
-            <View style={styles.timersBadgeContainer}>
-                {timers.map(timer => (
-                <TouchableOpacity
-                    key={timer.id}
-                    style={[styles.timerBadge, !timer.isRunning && styles.timerBadgePaused]}
-                    onPress={() => timer.isRunning ? pauseTimer(timer.id) : resumeTimer(timer.id)}
-                    onLongPress={() => removeTimer(timer.id)}
-                >
-                    <Text style={styles.timerBadgeText}>
-                    {formatRemainingTime(timer.remainingSeconds)}
-                    </Text>
+            {/* Header fixe avec badge timers */}
+            <View style={styles.header}>
+                <TouchableOpacity onPress={handleClose} style={styles.closeIconButton}>
+                    <Text style={styles.closeIcon}>✕</Text>
                 </TouchableOpacity>
-                ))}
-            </View>
-            )}
-            {timers.length === 0 && <View style={styles.placeholder} />}
-        </View>
-
-        <ScrollView 
-            style={styles.scrollView}
-            contentContainerStyle={styles.scrollContent}
-            showsVerticalScrollIndicator={false}
-        >
-            {/* Ingrédients - Toujours visibles */}
-            <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Ingrédients</Text>
-            <View style={styles.ingredientsList}>
-                {recette.ingredients.map((item, index) => (
-                <View key={index} style={styles.ingredientRow}>
-                    <Text style={styles.ingredientBullet}>•</Text>
-                    <Text style={styles.ingredientText}>
-                    <Text style={styles.ingredientQuantity}>
-                        {item.quantite} {item.unite}
-                    </Text>
-                    {' '}
-                    {item.ingredient}
-                    </Text>
-                </View>
-                ))}
-            </View>
-            </View>
-
-            {/* Séparateur */}
-            <View style={styles.separator} />
-
-            {/* Instructions - Navigation par étape */}
-            <View style={styles.section}>
-            <View style={styles.stepHeader}>
-                <Text style={styles.sectionTitle}>Préparation</Text>
-                <Text style={styles.stepCounter}>
-                Étape {activeStep + 1} / {recette.instructions.length}
+                <Text style={styles.headerTitle} numberOfLines={1}>
+                    {recette.titre}
                 </Text>
-            </View>
-
-            <View style={styles.stepContainer}>
-                <View style={styles.stepNumberBadge}>
-                <Text style={styles.stepNumberText}>{activeStep + 1}</Text>
-                </View>
                 
-                <Text style={styles.stepInstruction}>
-                {recette.instructions[activeStep]}
-                </Text>
-
-                {/* Boutons timer contextuels */}
-                {(detectedDurations.length > 0 || (recette.custom_timers && recette.custom_timers.filter(t => t.stepIndex === activeStep).length > 0)) && (
-                <View style={styles.timerButtonsContainer}>
-                    {/* Timers détectés automatiquement */}
-                    {detectedDurations.map((duration, index) => (
-                        <TouchableOpacity
-                            key={`auto-${index}`}
-                            style={styles.timerButton}
-                            onPress={() => handleOpenTimerModal(activeStep, duration.duration)}
-                        >
-                            <Ionicons name="timer-outline" size={24} color={COLORS.marron} />
-                            <Text style={styles.timerButtonText}>
-                                Démarrer {duration.label}
-                            </Text>
-                        </TouchableOpacity>
-                    ))}
-                    
-                    {/* Timers personnalisés pour cette étape */}
-                    {recette.custom_timers && recette.custom_timers
-                        .filter(timer => timer.stepIndex === activeStep)
-                        .map((timer, index) => (
+                {/* Badge timers actifs */}
+                {timers.length > 0 && (
+                    <View style={styles.timersBadgeContainer}>
+                        {timers.map(timer => (
                             <TouchableOpacity
-                                key={`custom-${index}`}
-                                style={[styles.timerButton, styles.customTimerButton]}
-                                onPress={() => handleOpenTimerModal(activeStep, timer.duration)}
+                                key={timer.id}
+                                style={[styles.timerBadge, !timer.isRunning && styles.timerBadgePaused]}
+                                onPress={() => timer.isRunning ? pauseTimer(timer.id) : resumeTimer(timer.id)}
+                                onLongPress={() => removeTimer(timer.id)}
                             >
-                                <Ionicons name="timer-outline" size={24} color={COLORS.marron} />
-                                <Text style={styles.timerButtonText}>
-                                    Démarrer {timer.label || `Timer ${timer.duration} min`}
+                                <Text style={styles.timerBadgeText}>
+                                    {formatRemainingTime(timer.remainingSeconds)}
                                 </Text>
                             </TouchableOpacity>
                         ))}
-                </View>
+                    </View>
                 )}
+                {timers.length === 0 && <View style={styles.placeholder} />}
+            </View>
 
-                {/* Timers actifs pour cette étape */}
-                {activeTimersForStep.map(timer => (
-                <View key={timer.id} style={styles.activeTimerCard}>
-                    <Text style={styles.activeTimerTime}>
-                    {formatRemainingTime(timer.remainingSeconds)}
-                    </Text>
-                    <View style={styles.activeTimerControls}>
-                    <TouchableOpacity
-                        style={styles.timerControlButton}
-                        onPress={() => timer.isRunning ? pauseTimer(timer.id) : resumeTimer(timer.id)}
-                    >
-                        <Ionicons 
-                            name={timer.isRunning ? "pause" : "play"}
-                            size={20} 
-                            color={COLORS.beigeclair} 
+            <ScrollView 
+                style={styles.scrollView}
+                contentContainerStyle={styles.scrollContent}
+                showsVerticalScrollIndicator={false}
+            >
+                {/* Ingrédients - Toujours visibles */}
+                <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>Ingrédients</Text>
+                    <View style={styles.ingredientsList}>
+                        {recette.ingredients.map((item, index) => (
+                            <View key={index} style={styles.ingredientRow}>
+                                <Text style={styles.ingredientBullet}>•</Text>
+                                <Text style={styles.ingredientText}>
+                                    <Text style={styles.ingredientQuantity}>
+                                        {item.quantite} {item.unite}
+                                    </Text>
+                                    {' '}
+                                    {item.ingredient}
+                                </Text>
+                            </View>
+                        ))}
+                    </View>
+                </View>
+
+                {/* Séparateur */}
+                <View style={styles.separator} />
+
+                {/* Instructions - Navigation par étape */}
+                <View style={styles.section}>
+                    <View style={styles.stepHeader}>
+                        <Text style={styles.sectionTitle}>Préparation</Text>
+                        <Text style={styles.stepCounter}>
+                            Étape {activeStep + 1} / {recette.instructions.length}
+                        </Text>
+                    </View>
+
+                    <View style={styles.stepContainer}>
+                        <View style={styles.stepNumberBadge}>
+                            <Text style={styles.stepNumberText}>{activeStep + 1}</Text>
+                        </View>
+                        
+                        <Text style={styles.stepInstruction}>
+                            {recette.instructions[activeStep]}
+                        </Text>
+
+                        {/* Boutons timer contextuels */}
+                        {(detectedDurations.length > 0 || (recette.custom_timers && recette.custom_timers.filter(t => t.stepIndex === activeStep).length > 0)) && (
+                            <View style={styles.timerButtonsContainer}>
+                                {/* Timers détectés automatiquement */}
+                                {detectedDurations.map((duration, index) => (
+                                    <TouchableOpacity
+                                        key={`auto-${index}`}
+                                        style={styles.timerButton}
+                                        onPress={() => handleOpenTimerModal(activeStep, duration.duration)}
+                                    >
+                                        <Ionicons name="timer-outline" size={24} color={COLORS.marron} />
+                                        <Text style={styles.timerButtonText}>
+                                            Démarrer {duration.label}
+                                        </Text>
+                                    </TouchableOpacity>
+                                ))}
+                                
+                                {/* Timers personnalisés pour cette étape */}
+                                {recette.custom_timers && recette.custom_timers
+                                    .filter(timer => timer.stepIndex === activeStep)
+                                    .map((timer, index) => (
+                                        <TouchableOpacity
+                                            key={`custom-${index}`}
+                                            style={[styles.timerButton, styles.customTimerButton]}
+                                            onPress={() => handleOpenTimerModal(activeStep, timer.duration)}
+                                        >
+                                            <Ionicons name="timer-outline" size={24} color={COLORS.marron} />
+                                            <Text style={styles.timerButtonText}>
+                                                Démarrer {timer.label || `Timer ${timer.duration} min`}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    ))}
+                            </View>
+                        )}
+
+                        {/* Timers actifs pour cette étape */}
+                        {activeTimersForStep.map(timer => (
+                            <View key={timer.id} style={styles.activeTimerCard}>
+                                <Text style={styles.activeTimerTime}>
+                                    {formatRemainingTime(timer.remainingSeconds)}
+                                </Text>
+                                <View style={styles.activeTimerControls}>
+                                    <TouchableOpacity
+                                        style={styles.timerControlButton}
+                                        onPress={() => timer.isRunning ? pauseTimer(timer.id) : resumeTimer(timer.id)}
+                                    >
+                                        <Ionicons 
+                                            name={timer.isRunning ? "pause" : "play"}
+                                            size={20} 
+                                            color={COLORS.beigeclair} 
+                                        />
+                                    </TouchableOpacity>
+                                    <TouchableOpacity
+                                        style={styles.timerControlButton}
+                                        onPress={() => removeTimer(timer.id)}
+                                    >
+                                        <Ionicons name="trash" size={20} color={COLORS.beigeclair} />
+                                    </TouchableOpacity>
+                                </View>
+                            </View>
+                        ))}
+                    </View>
+
+                    {/* Navigation entre étapes */}
+                    <View style={styles.navigationButtons}>
+                        <TouchableOpacity
+                            style={[styles.navButton, activeStep === 0 && styles.navButtonDisabled]}
+                            onPress={handlePreviousStep}
+                            disabled={activeStep === 0}
+                        >
+                            <Text style={styles.navButtonText}>← Précédent</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            style={[
+                                styles.navButton,
+                                activeStep === recette.instructions.length - 1 && styles.navButtonDisabled
+                            ]}
+                            onPress={handleNextStep}
+                            disabled={activeStep === recette.instructions.length - 1}
+                        >
+                            <Text style={styles.navButtonText}>Suivant →</Text>
+                        </TouchableOpacity>
+                    </View>
+
+                    {/* Toutes les étapes (aperçu) */}
+                    <View style={styles.allStepsPreview}>
+                        <Text style={styles.previewTitle}>Toutes les étapes :</Text>
+                        {recette.instructions.map((instruction, index) => {
+                            const hasTimer = timers.some(t => t.stepIndex === index);
+                            return (
+                                <TouchableOpacity
+                                    key={index}
+                                    style={[
+                                        styles.previewStep,
+                                        index === activeStep && styles.previewStepActive
+                                    ]}
+                                    onPress={() => setActiveStep(index)}
+                                >
+                                    <Text style={[
+                                        styles.previewStepNumber,
+                                        index === activeStep && styles.previewStepNumberActive
+                                    ]}>
+                                        {index + 1}
+                                    </Text>
+                                    <Text style={[
+                                        styles.previewStepText,
+                                        index === activeStep && styles.previewStepTextActive
+                                    ]} numberOfLines={2}>
+                                        {instruction}
+                                    </Text>
+                                    {hasTimer && <Text style={styles.previewStepTimer}>⏱️</Text>}
+                                </TouchableOpacity>
+                            );
+                        })}
+                    </View>
+                </View>
+            </ScrollView>
+
+            {/* Footer avec temps */}
+            {(recette.temps_preparation || recette.temps_cuisson) && (
+                <View style={styles.footer}>
+                    {recette.temps_preparation && (
+                        <View style={styles.footerItem}>
+                            <Ionicons name="timer-outline" size={20} color={COLORS.marron} />
+                            <Text style={styles.footerText}>
+                                Préparation: {recette.temps_preparation} min
+                            </Text>
+                        </View>
+                    )}
+                    {recette.temps_cuisson && (
+                        <View style={styles.footerItem}>
+                            <Ionicons name="flame" size={20} color={COLORS.iconfire} />
+                            <Text style={styles.footerText}>
+                                Cuisson: {recette.temps_cuisson} min
+                            </Text>
+                        </View>
+                    )}
+                </View>
+            )}
+
+            {/* Modal de configuration du timer */}
+            <Modal
+                visible={showTimerModal}
+                transparent={true}
+                animationType="fade"
+                onRequestClose={() => setShowTimerModal(false)}
+            >
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalContent}>
+                        <Text style={styles.modalTitle}>Configurer le timer</Text>
+                        
+                        <Text style={styles.modalLabel}>Durée (en minutes)</Text>
+                        <TextInput
+                            style={styles.modalInput}
+                            value={timerMinutes}
+                            onChangeText={setTimerMinutes}
+                            keyboardType="numeric"
+                            placeholder="Ex: 20"
+                            placeholderTextColor="#999"
+                            autoFocus
                         />
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                        style={styles.timerControlButton}
-                        onPress={() => removeTimer(timer.id)}
-                    >
-                        <Ionicons name="trash" size={20} color={COLORS.beigeclair} />
-                    </TouchableOpacity>
+
+                        <View style={styles.modalButtons}>
+                            <TouchableOpacity
+                                style={styles.modalButtonCancel}
+                                onPress={() => setShowTimerModal(false)}
+                            >
+                                <Text style={styles.modalButtonCancelText}>Annuler</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={styles.modalButtonConfirm}
+                                onPress={handleStartTimer}
+                            >
+                                <Text style={styles.modalButtonConfirmText}>Démarrer</Text>
+                            </TouchableOpacity>
+                        </View>
                     </View>
                 </View>
-                ))}
-            </View>
-
-            {/* Navigation entre étapes */}
-            <View style={styles.navigationButtons}>
-                <TouchableOpacity
-                style={[styles.navButton, activeStep === 0 && styles.navButtonDisabled]}
-                onPress={handlePreviousStep}
-                disabled={activeStep === 0}
-                >
-                <Text style={styles.navButtonText}>← Précédent</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                style={[
-                    styles.navButton,
-                    activeStep === recette.instructions.length - 1 && styles.navButtonDisabled
-                ]}
-                onPress={handleNextStep}
-                disabled={activeStep === recette.instructions.length - 1}
-                >
-                <Text style={styles.navButtonText}>Suivant →</Text>
-                </TouchableOpacity>
-            </View>
-
-            {/* Toutes les étapes (aperçu) */}
-            <View style={styles.allStepsPreview}>
-                <Text style={styles.previewTitle}>Toutes les étapes :</Text>
-                {recette.instructions.map((instruction, index) => {
-                const hasTimer = timers.some(t => t.stepIndex === index);
-                return (
-                    <TouchableOpacity
-                    key={index}
-                    style={[
-                        styles.previewStep,
-                        index === activeStep && styles.previewStepActive
-                    ]}
-                    onPress={() => setActiveStep(index)}
-                    >
-                    <Text style={[
-                        styles.previewStepNumber,
-                        index === activeStep && styles.previewStepNumberActive
-                    ]}>
-                        {index + 1}
-                    </Text>
-                    <Text style={[
-                        styles.previewStepText,
-                        index === activeStep && styles.previewStepTextActive
-                    ]} numberOfLines={2}>
-                        {instruction}
-                    </Text>
-                    {hasTimer && <Text style={styles.previewStepTimer}>⏱️</Text>}
-                    </TouchableOpacity>
-                );
-                })}
-            </View>
-            </View>
-        </ScrollView>
-
-        {/* Footer avec temps */}
-        {(recette.temps_preparation || recette.temps_cuisson) && (
-            <View style={styles.footer}>
-                {recette.temps_preparation && (
-                    <View style={styles.footerItem}>
-                        <Ionicons name="timer-outline" size={20} color={COLORS.marron} />
-                        <Text style={styles.footerText}>
-                            Préparation: {recette.temps_preparation} min
-                        </Text>
-                    </View>
-                )}
-                {recette.temps_cuisson && (
-                    <View style={styles.footerItem}>
-                        <Ionicons name="flame" size={20} color={COLORS.iconfire} />
-                        <Text style={styles.footerText}>
-                            Cuisson: {recette.temps_cuisson} min
-                        </Text>
-                    </View>
-                )}
-            </View>
-        )}
-
-        {/* Modal de configuration du timer */}
-        <Modal
-            visible={showTimerModal}
-            transparent={true}
-            animationType="fade"
-            onRequestClose={() => setShowTimerModal(false)}
-        >
-            <View style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
-                <Text style={styles.modalTitle}>Configurer le timer</Text>
-                
-                <Text style={styles.modalLabel}>Durée (en minutes)</Text>
-                <TextInput
-                style={styles.modalInput}
-                value={timerMinutes}
-                onChangeText={setTimerMinutes}
-                keyboardType="numeric"
-                placeholder="Ex: 20"
-                placeholderTextColor="#999"
-                autoFocus
-                />
-
-                <View style={styles.modalButtons}>
-                <TouchableOpacity
-                    style={styles.modalButtonCancel}
-                    onPress={() => setShowTimerModal(false)}
-                >
-                    <Text style={styles.modalButtonCancelText}>Annuler</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                    style={styles.modalButtonConfirm}
-                    onPress={handleStartTimer}
-                >
-                    <Text style={styles.modalButtonConfirmText}>Démarrer</Text>
-                </TouchableOpacity>
-                </View>
-            </View>
-            </View>
-        </Modal>
+            </Modal>
         </SafeAreaView>
     );
-    }
+}
 
-    const styles = StyleSheet.create({
+const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: COLORS.background,
@@ -819,7 +940,7 @@ import {
         borderTopWidth: 2,
         borderTopColor: '#000000',
     },
-    footerItem: {  // AJOUTE ce nouveau style
+    footerItem: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 6,

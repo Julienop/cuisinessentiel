@@ -8,6 +8,51 @@ import { applySiteSpecificRules } from './siteSpecificRules';
 import { cleanRecipeData } from './cleaningUtils';
 import { detectCategory } from './categoryDetector';
 import { validateUrl } from './urlValidator';
+import { isUnsupportedSite } from './unsupportedSites';
+
+/**
+ * Transforme les erreurs techniques en messages conviviaux
+ */
+function formatUserFriendlyError(error) {
+    const message = error.message || '';
+
+    // Si le message contient déjà un emoji, c'est qu'il est déjà convivial
+    if (message.includes('📝') || message.includes('🤖') || message.includes('🐌') || message.includes('⏱️')) {
+        return message; // Garder tel quel
+    }
+    
+    // Cas spécifiques avec messages adaptés
+    if (message.includes('HTTP 429') || message.includes('429')) {
+        return 'Aïe, le site me demande de ralentir un peu ! Réessayez dans quelques instants. 🐌';
+    }
+    
+    if (message.includes('HTTP 403') || message.includes('403')) {
+        return 'Oups, le site refuse ma visite ! Il est peut-être protégé. 🚫';
+    }
+    
+    if (message.includes('Protection détectée') || message.includes('Cloudflare')) {
+        return 'Ce site utilise une protection anti-robots que je ne peux pas contourner. 🤖';
+    }
+    
+    if (message.includes('timeout') || message.includes('AbortError')) {
+        return 'Le site met trop de temps à répondre... Il est peut-être surchargé. ⏱️';
+    }
+    
+    if (message.includes('trop volumineux') || message.includes('MAX_SIZE')) {
+        return 'Cette page est vraiment trop longue à charger ! 📚';
+    }
+    
+    if (message.includes('URL non autorisée')) {
+        return 'Cette adresse n\'est pas valide ou n\'est pas accessible. 🔗';
+    }
+    
+    if (message.includes('Impossible d\'extraire')) {
+        return 'Hmm, je n\'arrive pas à comprendre la structure de cette recette. 🤔';
+    }
+    
+    // Message par défaut pour toutes les autres erreurs
+    return 'Aïe, le site demandé me donne du fil à retordre ! Réessayez ou ajoutez la recette manuellement. 🍝';
+}
 
 /**
  * Extrait une recette depuis une URL
@@ -25,6 +70,17 @@ export async function extractRecipeFromUrl(url) {
     try {
         console.log('🔍 Début extraction:', url);
 
+        // Identifier le domaine
+        const domain = extractDomain(url);
+        console.log('📍 Domaine détecté:', domain);
+
+        // Vérifier si le site est supporté
+        const unsupported = isUnsupportedSite(domain);
+        if (unsupported) {
+            console.log('⚠️ Site non supporté:', unsupported.reason);
+            throw new Error(unsupported.message);
+        }
+
         // Étape 1 : Récupérer le HTML de la page
         const html = await fetchHtml(url);
         if (!html) {
@@ -33,10 +89,6 @@ export async function extractRecipeFromUrl(url) {
 
         // Charger le HTML avec node-html-parser
         const root = parse(html);
-        
-        // Identifier le domaine pour les règles spécifiques
-        const domain = extractDomain(url);
-        console.log('📍 Domaine détecté:', domain);
 
         let recipeData = null;
 
@@ -227,8 +279,47 @@ export async function extractRecipeFromUrl(url) {
 
     } catch (error) {
         console.error('❌ Erreur extraction:', error.message);
-        throw error;
+        // Transformer en message convivial
+        const friendlyMessage = formatUserFriendlyError(error);
+        throw new Error(friendlyMessage);
     }
+}
+
+/**
+ * Retourne les headers adaptés selon le domaine
+ */
+function getHeadersForDomain(url) {
+    const domain = extractDomain(url);
+    
+    // Headers renforcés pour sites protégés
+    if (['atelierdeschefs.fr','lacuisinedbernard.com'].includes(domain)) {
+        return {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+            'Accept-Language': 'fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Referer': 'https://www.google.com/',
+            'DNT': '1',
+            'Connection': 'keep-alive',
+            'Upgrade-Insecure-Requests': '1',
+            'Sec-Fetch-Dest': 'document',
+            'Sec-Fetch-Mode': 'navigate',
+            'Sec-Fetch-Site': 'cross-site',
+            'Sec-Fetch-User': '?1',
+            'Cache-Control': 'max-age=0',
+        };
+    }
+    
+    // Headers standards pour les autres sites
+    return {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+        'Accept-Language': 'fr-FR,fr;q=0.9',
+        'Accept-Encoding': 'gzip, deflate',
+        'Referer': 'https://www.google.com/',
+        'Connection': 'keep-alive',
+        'Upgrade-Insecure-Requests': '1',
+    };
 }
 
 /**
@@ -267,15 +358,7 @@ async function fetchHtml(url, retries = 3) {
             
             response = await fetch(url, {
                 method: 'GET',
-                headers: {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
-                    'Accept-Language': 'fr-FR,fr;q=0.9',
-                    'Accept-Encoding': 'gzip, deflate',
-                    'Referer': 'https://www.google.com/', 
-                    'Connection': 'keep-alive',
-                    'Upgrade-Insecure-Requests': '1',
-                },
+                headers: getHeadersForDomain(url),
                 signal: controller.signal,
             });
 

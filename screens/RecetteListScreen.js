@@ -768,11 +768,12 @@ const styles = StyleSheet.create({
     },
     selectAllText: {
         fontSize: 14,
-        color: '#2E7D32',
+        color: COLORS.green,
         fontWeight: '600',
     },
     contentWrapper: {
         flex: 1,
+        paddingVertical: 8,
     },
     listContainer: {
         paddingHorizontal: 16,
@@ -811,16 +812,14 @@ const styles = StyleSheet.create({
     },
     recetteCard: {
         backgroundColor: COLORS.beigeclair,
-        padding: 16,
+        padding: 12,
         marginBottom: 12,
         borderRadius: 8,
         flexDirection: 'row',
         alignItems: 'flex-start',
     },
     recetteCardSelected: {
-        borderColor: '#4CAF50',
-        borderWidth: 2,
-        backgroundColor: '#F1F8F4',
+        backgroundColor: COLORS.green,
     },
     checkbox: {
         marginRight: 12,
@@ -837,7 +836,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     checkboxInnerSelected: {
-        backgroundColor: '#4CAF50',
+        backgroundColor: COLORS.green,
         borderColor: '#4CAF50',
     },
     recetteContent: {
@@ -936,7 +935,7 @@ const styles = StyleSheet.create({
         gap: 8,
     },
     shareButton: {
-        backgroundColor: '#4CAF50',
+        backgroundColor: COLORS.green,
     },
     deleteButton: {
         backgroundColor: '#dc7226ff',

@@ -36,6 +36,7 @@ export default function RecetteEditScreen({ navigation, route }) {
     const [instructions, setInstructions] = useState([]);
     const [tags, setTags] = useState('');
     const [notesPersonnelles, setNotesPersonnelles] = useState('');
+    const [urlSource, setUrlSource] = useState('');
 
     useEffect(() => {
         loadRecette();
@@ -60,6 +61,7 @@ export default function RecetteEditScreen({ navigation, route }) {
             setInstructions(data.instructions || []);
             setTags(data.tags?.join(', ') || '');
             setNotesPersonnelles(data.notes_personnelles || '');
+            setUrlSource(data.url_source || '');
         } catch (error) {
             console.error('Erreur chargement recette:', error);
             Alert.alert('Erreur', 'Impossible de charger la recette');
@@ -99,6 +101,7 @@ export default function RecetteEditScreen({ navigation, route }) {
                 instructions,
                 tags: tags.split(',').map(t => t.trim()).filter(t => t.length > 0),
                 notes_personnelles: notesPersonnelles.trim(),
+                url_source: urlSource,
                 est_favori: 0, // On garde le statut actuel
             };
 
@@ -402,7 +405,7 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: COLORS.border,
         borderRadius: 8,
-        padding: 12,
+        padding: 6,
         fontSize: 16,
         color: COLORS.text,
     },
@@ -451,7 +454,7 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: COLORS.border,
         borderRadius: 8,
-        padding: 12,
+        padding: 8,
         fontSize: 16,
         color: COLORS.text,
     },

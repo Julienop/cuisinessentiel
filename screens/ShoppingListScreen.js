@@ -290,11 +290,13 @@ export default function ShoppingListScreen({ navigation }) {
                 transparent={true}
                 onRequestClose={() => setAddModalVisible(false)}
             >
-                <KeyboardAvoidingView
-                    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                    style={styles.modalOverlay}
-                >
-                    <View style={styles.modalContent}>
+                <View style={styles.modalOverlay}>
+                    <KeyboardAvoidingView
+                        behavior={Platform.OS === 'ios' ? 'padding' : undefined}  // ✅ undefined pour Android
+                        style={{ width: '100%' }}
+                        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+                    >
+                        <View style={styles.modalContent}>
                         <View style={styles.modalHeader}>
                             <Text style={styles.modalTitle}>Ajouter un article</Text>
                             <TouchableOpacity onPress={() => setAddModalVisible(false)}>
@@ -311,6 +313,7 @@ export default function ShoppingListScreen({ navigation }) {
                                 <TextInput
                                     style={styles.input}
                                     placeholder="Ex: Farine, Oeufs, Lait..."
+                                    placeholderTextColor={COLORS.accent}
                                     value={newItem.ingredient}
                                     onChangeText={(text) => setNewItem({ ...newItem, ingredient: text })}
                                     autoFocus
@@ -324,6 +327,7 @@ export default function ShoppingListScreen({ navigation }) {
                                     <TextInput
                                         style={styles.input}
                                         placeholder="Ex: 250"
+                                        placeholderTextColor={COLORS.accent}
                                         value={newItem.quantite}
                                         onChangeText={(text) => setNewItem({ ...newItem, quantite: text })}
                                         keyboardType="numeric"
@@ -335,6 +339,7 @@ export default function ShoppingListScreen({ navigation }) {
                                     <TextInput
                                         style={styles.input}
                                         placeholder="Ex: g, ml, pièce"
+                                        placeholderTextColor={COLORS.accent}
                                         value={newItem.unite}
                                         onChangeText={(text) => setNewItem({ ...newItem, unite: text })}
                                     />
@@ -366,6 +371,7 @@ export default function ShoppingListScreen({ navigation }) {
                         </View>
                     </View>
                 </KeyboardAvoidingView>
+                </View>
             </Modal>
         </SafeAreaView>
     );
@@ -512,14 +518,19 @@ const styles = StyleSheet.create({
     modalOverlay: {
         flex: 1,
         backgroundColor: 'rgba(0, 0, 0, 0.5)',
-        justifyContent: 'flex-end',
+        justifyContent: 'center',  // ✅ Centrer
+        alignItems: 'center',      // ✅ Ajouter
+        padding: 24,
+        paddingBottom:150,
     },
     modalContent: {
         backgroundColor: COLORS.white,
-        borderTopLeftRadius: 20,
-        borderTopRightRadius: 20,
         padding: 24,
         paddingBottom: 40,
+        borderRadius: 20,
+        paddingBottom: 40,
+        width: '100%',
+        maxWidth: 500,
     },
     modalHeader: {
         flexDirection: 'row',
@@ -551,9 +562,9 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: COLORS.border,
         borderRadius: 8,
-        padding: 12,
+        padding: 8,
         fontSize: 16,
-        backgroundColor: COLORS.beigeclair,
+        backgroundColor: COLORS.background,
         color: COLORS.text,
     },
     row: {

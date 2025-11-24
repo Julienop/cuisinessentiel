@@ -28,6 +28,7 @@ import { extractDelicesDuneNovice } from './sites/delicesdunenovice.js';
 import { extractAmandineCooking } from './sites/amandinecooking.js';
 // import { extractCarrefour } from './sites/carrefour.js';
 import { extractVeganPratique } from './sites/veganpratique.js';
+import { extractAtelierDesChefs } from './sites/atelierdeschefs';
 
 /**
  * Détecte si le site utilise un plugin WordPress de recettes
@@ -184,6 +185,11 @@ export function applySiteSpecificRules(root, domain) {
     // Vegan pratique
     if (domain.includes('vegan-pratique.fr')) {
         return extractVeganPratique(root);
+    }
+
+    // Atelier des chefs
+    if (domain.includes('atelierdeschefs.fr')) {
+        return extractAtelierDesChefs(root);
     }
 
     // Détecte TOUS les blogs Blogspot/Blogger

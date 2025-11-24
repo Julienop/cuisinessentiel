@@ -116,7 +116,25 @@ import {
 
                 <TouchableOpacity 
                 style={styles.statBoxWrapper}
-                onPress={() => navigation.navigate('ShoppingList')}>
+                    onPress={() => {
+                        const check = premiumManager.canAccessFeature('shopping_list');
+                        if (!check.canAccess) {
+                            Alert.alert(
+                                'Premium requis',
+                                check.reason,
+                                [
+                                    { text: 'Plus tard' },
+                                    { 
+                                        text: 'Passer Premium',
+                                        onPress: () => navigation.navigate('Premium')
+                                    }
+                                ]
+                            );
+                            return;
+                        }
+                        navigation.navigate('ShoppingList');
+                    }}
+                >
                 <View style={styles.statBox}>
                     <Ionicons name="cart-outline" size={24} color={COLORS.marron} />
                     <View style={styles.statContent}>
