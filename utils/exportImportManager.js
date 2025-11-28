@@ -35,7 +35,7 @@ export const exportAllRecettes = async () => {
         const data = {
             version: APP_VERSION,
             exportDate: new Date().toISOString(),
-            appName: 'Cuisin\'essentiel',
+            appName: 'Cuisin\'Essentiel',
             recettesCount: recettes.length,
             recettes: recettes,
         };
@@ -53,8 +53,10 @@ export const exportAllRecettes = async () => {
             });
         }
 
+        // ✅ CORRIGÉ : On indique que c'était un partage (on ne sait pas si l'utilisateur a confirmé ou annulé)
         return {
             success: true,
+            shared: true,  // ← Indique que c'était une action de partage
             count: recettes.length,
             fileName: fileName
         };
@@ -103,8 +105,10 @@ export const exportSingleRecette = async (recetteId, titre) => {
             });
         }
         
+        // ✅ CORRIGÉ : On indique que c'était un partage
         return {
             success: true,
+            shared: true,
             fileName: fileName
         };
     } catch (error) {
@@ -151,8 +155,10 @@ export const exportSelectedRecettes = async (selectedRecettes) => {
             });
         }
         
+        // ✅ CORRIGÉ : On indique que c'était un partage
         return {
             success: true,
+            shared: true,
             count: selectedRecettes.length,
             fileName: fileName
         };

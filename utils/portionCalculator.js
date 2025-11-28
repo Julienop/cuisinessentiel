@@ -43,12 +43,24 @@ function parseIngredientWithFraction(text) {
     const patterns = [
         /^(\d+\s+\d+\/\d+)\s+(.+)$/,  // "1 1/2 Oignon"
         /^(\d+\/\d+)\s+(.+)$/,         // "1/4 Oignon"
+        // NOUVEAU : Détecter "1 5 kg" comme nombre décimal mal formaté
+        /^(\d+)\s+(\d+)\s+(.+)$/,      // "1 5 kg" → interprété comme "1.5 kg"
         /^(\d+(?:\.\d+)?)\s+(.+)$/,    // "0.5 Oignon" ou "2 Oignons"
     ];
     
     for (const pattern of patterns) {
         const match = text.match(pattern);
         if (match) {
+            // CAS SPÉCIAL : "1 5 kg" → convertir en "1.5"
+            if (pattern.source === /^(\d+)\s+(\d+)\s+(.+)$/.source) {
+                const entier = match[1];
+                const decimale = match[2];
+                return {
+                    quantite: `${entier}.${decimale}`,
+                    reste: match[3]
+                };
+            }
+            
             return {
                 quantite: match[1],
                 reste: match[2]
@@ -240,6 +252,20 @@ export function recalculateIngredients(ingredients, portionsOriginales, nouvelle
             return {
                 ...ingredient,
                 quantite: `${formatQuantity(newMin, unite)}-${formatQuantity(newMax, unite)}`
+            };
+        }
+
+        // Gérer les nombres décimaux mal formatés (1 5 = 1.5)
+        const malFormattedMatch = quantiteStr.match(/^(\d+)\s+(\d+)$/);
+        if (malFormattedMatch) {
+            const entier = parseInt(malFormattedMatch[1]);
+            const decimale = parseInt(malFormattedMatch[2]);
+            const nombre = parseFloat(`${entier}.${decimale}`);
+            const nouvelleQuantite = nombre * ratio;
+            console.log(`  ✅ Nombre mal formaté détecté: ${entier} ${decimale} = ${nombre} × ${ratio} = ${nouvelleQuantite}`);
+            return {
+                ...ingredient,
+                quantite: formatQuantity(nouvelleQuantite, unite)
             };
         }
 

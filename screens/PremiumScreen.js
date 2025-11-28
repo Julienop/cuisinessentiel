@@ -1,5 +1,5 @@
 // screens/PremiumScreen.js
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     View,
     Text,
@@ -11,42 +11,39 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS } from '../constants/colors';
 import { Ionicons } from '@expo/vector-icons';
-import premiumManager, { LIMITE_RECETTES_GRATUIT } from '../utils/premiumManager';
-import iapManager from '../utils/iapManager';
-import { useFocusEffect } from '@react-navigation/native';
+import { LIMITE_RECETTES_GRATUIT } from '../utils/premiumManager';
+import { useIAPContext } from '../utils/IAPContext';  // ✅ NOUVEAU
 
 export default function PremiumScreen({ navigation }) {
     const [purchasing, setPurchasing] = useState(false);
-    const [price, setPrice] = useState('4,99 €');
+    
+    // ✅ NOUVEAU : Utiliser le hook au lieu de iapManager
+    const { 
+        purchasePremium, 
+        restorePurchases, 
+        getPremiumProduct,
+        isReady 
+    } = useIAPContext();
 
-    useFocusEffect(
-        React.useCallback(() => {
-            loadPrice();
-        }, [])
-    );
-
-    const loadPrice = async () => {
-        const product = iapManager.getPremiumProduct();
-        if (product && product.localizedPrice) {
-            setPrice(product.localizedPrice);
-        }
-    };
+    // Récupérer le prix du produit
+    const product = getPremiumProduct();
+    const price = product?.localizedPrice || '4,99 €';
 
     const handlePurchase = async () => {
         setPurchasing(true);
         
-        const result = await iapManager.purchasePremium();
+        const result = await purchasePremium();  // ✅ Utilise le contexte
         
         setPurchasing(false);
         
         // Si l'achat est réussi, on ferme l'écran
-        if (result && !result.cancelled) {
+        if (result && result.success && !result.cancelled) {
             navigation.goBack();
         }
     };
 
     const handleRestore = async () => {
-        const result = await iapManager.restorePurchases();
+        const result = await restorePurchases();  // ✅ Utilise le contexte
         
         if (result && result.restored) {
             navigation.goBack();
@@ -145,9 +142,9 @@ export default function PremiumScreen({ navigation }) {
             {/* Boutons fixes en bas */}
             <View style={styles.bottomContainer}>
                 <TouchableOpacity
-                    style={[styles.purchaseButton, purchasing && styles.buttonDisabled]}
+                    style={[styles.purchaseButton, (purchasing || !isReady) && styles.buttonDisabled]}
                     onPress={handlePurchase}
-                    disabled={purchasing}
+                    disabled={purchasing || !isReady}
                 >
                     {purchasing ? (
                         <ActivityIndicator color={COLORS.background} />
@@ -160,7 +157,7 @@ export default function PremiumScreen({ navigation }) {
 
                 <TouchableOpacity
                     style={styles.restoreButton}
-                    onPress={handleRestore}  // ✅ Connecté !
+                    onPress={handleRestore}
                 >
                     <Text style={styles.restoreButtonText}>
                         Restaurer mes achats

@@ -72,7 +72,7 @@ export function extractPapillesetpupilles(root) {
                 for (const p of paragraphs) {
                     const text = p.textContent.trim();
                     // Filtrer : au moins 20 caractères et contient un verbe d'action
-                    if (text.length > 20 && containsActionVerb(text)) {
+                    if (text.length > 20) {
                         result.instructions.push(text);
                         console.log(`✅ Instruction: ${text.substring(0, 50)}...`);
                     }
@@ -82,7 +82,7 @@ export function extractPapillesetpupilles(root) {
             // Si c'est directement un <p>
             else if (nextElement.tagName === 'P') {
                 const text = nextElement.textContent.trim();
-                if (text.length > 20 && containsActionVerb(text)) {
+                if (text.length > 20) {
                     result.instructions.push(text);
                     console.log(`✅ Instruction: ${text.substring(0, 50)}...`);
                 }
@@ -129,15 +129,15 @@ function parseIngredientText(text) {
 /**
  * Vérifie si un texte contient un verbe d'action (indication d'instruction de cuisine)
  */
-function containsActionVerb(text) {
-    const actionVerbs = [
-        'préchauff', 'mélang', 'ajout', 'vers', 'mix', 'batt', 'coup',
-        'dispos', 'met', 'plac', 'enfourn', 'cuis', 'laiss', 'repos',
-        'fouett', 'incorpor', 'sépare', 'étale', 'beurr', 'prép',
-        'fond', 'doré', 'sais', 'hach', 'émince', 'coupe', 'découp',
-        'serv', 'dégust', 'refroid', 'chauf', 'port', 'saler', 'poivr'
-    ];
+// function containsActionVerb(text) {
+//     const actionVerbs = [
+//         'préchauff', 'mélang', 'ajout', 'vers', 'mix', 'batt', 'coup',
+//         'dispos', 'met', 'plac', 'enfourn', 'cuis', 'laiss', 'repos',
+//         'fouett', 'incorpor', 'sépare', 'étale', 'beurr', 'prép',
+//         'fond', 'doré', 'sais', 'hach', 'émince', 'coupe', 'découp',
+//         'serv', 'dégust', 'refroid', 'chauf', 'port', 'saler', 'poivr'
+//     ];
     
-    const lowerText = text.toLowerCase();
-    return actionVerbs.some(verb => lowerText.includes(verb));
-}
+//     const lowerText = text.toLowerCase();
+//     return actionVerbs.some(verb => lowerText.includes(verb));
+// }

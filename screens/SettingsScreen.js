@@ -24,7 +24,7 @@ import { exportAllRecettes, importRecettes } from '../utils/exportImportManager'
 import premiumManager from '../utils/premiumManager';
 
 // Version de l'app (à mettre à jour manuellement)
-const APP_VERSION = '1.0.0';
+const APP_VERSION = '1.0.5';
 
 export default function SettingsScreen({ navigation }) {
     const [aboutModalVisible, setAboutModalVisible] = useState(false);
@@ -60,8 +60,6 @@ export default function SettingsScreen({ navigation }) {
             }
             return;
         }
-        
-        Alert.alert('Succès', `${result.count} recette(s) exportée(s) !`);
     };
 
     // ========== IMPORT DE LA BASE DE DONNÉES ==========

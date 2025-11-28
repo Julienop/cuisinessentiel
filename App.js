@@ -1,4 +1,4 @@
-// App.js - VERSION SIMPLE POUR TEST
+// App.js - VERSION AVEC IAP v14
 import React, { useEffect, useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -11,6 +11,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { setupDeepLinking } from './utils/deepLinking';
 import premiumManager from './utils/premiumManager';
 import db from './database/db';
+import { IAPProvider } from './utils/IAPContext';
 
 import HomeScreen from './screens/HomeScreen';
 import RecetteListScreen from './screens/RecetteListScreen';
@@ -23,7 +24,7 @@ import ShoppingListScreen from './screens/ShoppingListScreen';
 import ExportImportScreen from './screens/ExportImportScreen';
 import SettingsScreen from './screens/SettingsScreen';
 import PremiumScreen from './screens/PremiumScreen';
-import iapManager from './utils/iapManager';
+// ❌ SUPPRIMÉ : import iapManager from './utils/iapManager';
 
 const Stack = createNativeStackNavigator();
 
@@ -66,11 +67,7 @@ export default function App() {
     }
   }, [dbReady]);
 
-  useEffect(() => {
-    return () => {
-        iapManager.cleanup();
-    };
-  }, []);
+  // ❌ SUPPRIMÉ : le cleanup de iapManager (géré par IAPProvider maintenant)
 
   useEffect(() => {
     // Forcer la navigationBar en mode sombre (boutons foncés)
@@ -85,8 +82,7 @@ export default function App() {
       await db.init();
       // initialiser le premium manager
       await premiumManager.init();
-      // Initialiser IAP
-      await iapManager.init();
+      // ❌ SUPPRIMÉ : await iapManager.init(); (géré par IAPProvider maintenant)
       setDbReady(true);
       console.log('Application initialisée avec succès');
     } catch (error) {
@@ -104,125 +100,128 @@ export default function App() {
     );
   }
 
+  // ✅ MODIFIÉ : On wrap tout avec IAPProvider
   return (
-    <SafeAreaProvider>
-      <StatusBar style="dark" />
-      <NavigationContainer ref={navigationRef}>
-        <Stack.Navigator
-          screenOptions={({ navigation }) => ({
-            headerStyle: {
-              backgroundColor: COLORS.background,
-            },
-            headerTintColor: COLORS.text,
-            headerTitleStyle: {
-              fontWeight: '600',
-              fontSize: 18,
-            },
-            headerShadowVisible: false,
-            contentStyle: {
-              backgroundColor: COLORS.background,
-            },
-            headerRight: () => <SettingsButton navigation={navigation} />,
-          })}
-        >
-          <Stack.Screen 
-            name="Home" 
-            component={HomeScreen}
-            options={{
-              headerTitle: () => <HeaderWithLogo title="Accueil" />,
-            }}
-          />
-
-          <Stack.Screen 
-            name="RecetteList" 
-            component={RecetteListScreen}
-            options={{ 
-              headerTitle: () => <HeaderWithLogo title="Toutes mes recettes" />
-            }}
-          />
-          
-          <Stack.Screen 
-            name="RecetteDetail" 
-            component={RecetteDetailScreen}
-            options={{ 
-              headerTitle: () => <HeaderWithLogo title="Recette" />
-            }}
-          />
-          
-          <Stack.Screen 
-            name="RecetteEdit" 
-            component={RecetteEditScreen}
-            options={{ 
-              headerTitle: () => <HeaderWithLogo title="Modifier" />
-            }}
-          />
-          
-          <Stack.Screen 
-            name="AddRecette" 
-            component={AddRecetteScreen}
-            options={{ 
-              headerTitle: () => <HeaderWithLogo title="Nouvelle recette" />,
-              presentation: 'modal',
-            }}
-          />
-          
-          <Stack.Screen 
-            name="ImportURL" 
-            component={ImportURLScreen}
-            options={{ 
-              headerTitle: () => <HeaderWithLogo title="Importer une recette" />,
-              presentation: 'modal',
-            }}
-          />
-          
-          <Stack.Screen 
-            name="CookingMode" 
-            component={CookingModeScreen}
-            options={{ 
-              title: '',
-              headerShown: false,
-              presentation: 'fullScreenModal',
-              animation: 'fade',
-            }}
-          />
-          
-          <Stack.Screen 
-            name="ShoppingList" 
-            component={ShoppingListScreen}
-            options={{ 
-              headerTitle: () => <HeaderWithLogo title="Liste de courses" />
-            }}
-          />
-
-          <Stack.Screen 
-            name="ExportImport" 
-            component={ExportImportScreen}
-            options={{ 
-              headerTitle: () => <HeaderWithLogo title="Sauvegarde" />
-            }}
-          />
-
-          <Stack.Screen 
-            name="Settings" 
-            component={SettingsScreen}
-            options={({ navigation }) => ({ 
-              headerTitle: () => <HeaderWithLogo title="Paramètres" />,
-              headerRight: () => <View />,
+    <IAPProvider>
+      <SafeAreaProvider>
+        <StatusBar style="dark" />
+        <NavigationContainer ref={navigationRef}>
+          <Stack.Navigator
+            screenOptions={({ navigation }) => ({
+              headerStyle: {
+                backgroundColor: COLORS.background,
+              },
+              headerTintColor: COLORS.text,
+              headerTitleStyle: {
+                fontWeight: '600',
+                fontSize: 18,
+              },
+              headerShadowVisible: false,
+              contentStyle: {
+                backgroundColor: COLORS.background,
+              },
+              headerRight: () => <SettingsButton navigation={navigation} />,
             })}
-          />
+          >
+            <Stack.Screen 
+              name="Home" 
+              component={HomeScreen}
+              options={{
+                headerTitle: () => <HeaderWithLogo title="Accueil" />,
+              }}
+            />
 
-          <Stack.Screen 
-            name="Premium" 
-            component={PremiumScreen}
-            options={{ 
-              headerTitle: () => <HeaderWithLogo title="Premium" />,
-              presentation: 'modal',
-            }}
-          />
+            <Stack.Screen 
+              name="RecetteList" 
+              component={RecetteListScreen}
+              options={{ 
+                headerTitle: () => <HeaderWithLogo title="Toutes mes recettes" />
+              }}
+            />
+            
+            <Stack.Screen 
+              name="RecetteDetail" 
+              component={RecetteDetailScreen}
+              options={{ 
+                headerTitle: () => <HeaderWithLogo title="Recette" />
+              }}
+            />
+            
+            <Stack.Screen 
+              name="RecetteEdit" 
+              component={RecetteEditScreen}
+              options={{ 
+                headerTitle: () => <HeaderWithLogo title="Modifier" />
+              }}
+            />
+            
+            <Stack.Screen 
+              name="AddRecette" 
+              component={AddRecetteScreen}
+              options={{ 
+                headerTitle: () => <HeaderWithLogo title="Nouvelle recette" />,
+                presentation: 'modal',
+              }}
+            />
+            
+            <Stack.Screen 
+              name="ImportURL" 
+              component={ImportURLScreen}
+              options={{ 
+                headerTitle: () => <HeaderWithLogo title="Importer une recette" />,
+                presentation: 'modal',
+              }}
+            />
+            
+            <Stack.Screen 
+              name="CookingMode" 
+              component={CookingModeScreen}
+              options={{ 
+                title: '',
+                headerShown: false,
+                presentation: 'fullScreenModal',
+                animation: 'fade',
+              }}
+            />
+            
+            <Stack.Screen 
+              name="ShoppingList" 
+              component={ShoppingListScreen}
+              options={{ 
+                headerTitle: () => <HeaderWithLogo title="Liste de courses" />
+              }}
+            />
 
-        </Stack.Navigator>
-      </NavigationContainer>
-    </SafeAreaProvider>
+            <Stack.Screen 
+              name="ExportImport" 
+              component={ExportImportScreen}
+              options={{ 
+                headerTitle: () => <HeaderWithLogo title="Sauvegarde" />
+              }}
+            />
+
+            <Stack.Screen 
+              name="Settings" 
+              component={SettingsScreen}
+              options={({ navigation }) => ({ 
+                headerTitle: () => <HeaderWithLogo title="Paramètres" />,
+                headerRight: () => <View />,
+              })}
+            />
+
+            <Stack.Screen 
+              name="Premium" 
+              component={PremiumScreen}
+              options={{ 
+                headerTitle: () => <HeaderWithLogo title="Premium" />,
+                presentation: 'modal',
+              }}
+            />
+
+          </Stack.Navigator>
+        </NavigationContainer>
+      </SafeAreaProvider>
+    </IAPProvider>
   );
 }
 

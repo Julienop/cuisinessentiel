@@ -35,7 +35,7 @@
         "backgroundColor": "#FFFEF7"
       },
       "package": "com.cordycepscreation.cuisinessentiel",
-      "versionCode": 2,
+      "versionCode": 4,
       "intentFilters": [
         {
           "action": "VIEW",
